@@ -9,6 +9,9 @@ dist/
 build/
 *.zip
 
+# Web Store screenshots (사용자 학습 데이터 포함 — 개인 정보)
+screenshots/
+
 # Personal Claude Code memory (개인 메모)
 CLAUDE.local.md
 .claude/settings.local.json

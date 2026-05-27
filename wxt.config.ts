@@ -13,6 +13,8 @@ export default defineConfig({
       // Web Store 심사 시 자막 학습 도구 용도 명시 필요 (v0.3+에서 optional_host_permissions로 전환 검토).
       'https://*.nflxvideo.net/*',
     ],
+    // options_ui.open_in_tab은 entrypoints/options/index.html의 meta tag로 설정
+    // (WXT가 entrypoint 자동 등록 시 여기 manifest 설정을 덮어쓰므로)
   },
   modules: ['@wxt-dev/module-react'],
   vite: () => ({

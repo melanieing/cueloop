@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { useContents } from '@/src/hooks/useContents';
 import { useLines } from '@/src/hooks/useLines';
 import { useLineProgressMap } from '@/src/hooks/useLineProgressMap';
@@ -6,9 +7,106 @@ import { useActiveTabContent } from '@/src/hooks/useActiveTabContent';
 import { db, type Content } from '@/src/db';
 import type { CueloopMessage } from '@/src/messages';
 import { broadcastContentUpdate } from '@/src/lib/broadcastUpdate';
+import { todayKey, getOrCreateTodayGoal } from '@/src/lib/dailyGoal';
 import { LineRow } from './LineRow';
 import { InsertLineModal } from './InsertLineModal';
 import { CustomLoopList } from './CustomLoopList';
+
+// === Streak (sidepanel-local, WXT 0.20 cross-entrypoint import 버그 회피용 inline) ===
+// popup/App.tsx와 동일한 구현. db.settings의 __streak__ key 공유.
+type Streak = {
+  id: number;
+  currentStreak: number;
+  longestStreak: number;
+  lastCompletedDate?: string;
+};
+
+const SETTING_STREAK_KEY = '__streak__';
+
+function sideYesterdayKey(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+async function loadStreak(): Promise<Streak> {
+  const row = await db.settings.get(SETTING_STREAK_KEY);
+  if (row) return row.value as Streak;
+  const fresh: Streak = { id: 1, currentStreak: 0, longestStreak: 0 };
+  await db.settings.put({ key: SETTING_STREAK_KEY, value: fresh });
+  return fresh;
+}
+
+async function maintainStreakSide(): Promise<Streak> {
+  const today = todayKey();
+  const yesterday = sideYesterdayKey();
+  const cur = await loadStreak();
+  // safety bump — 오늘 dailyGoal completed=1인데 streak 처리 안 됐으면 즉시 bump
+  if (cur.lastCompletedDate !== today) {
+    const todayGoal = await db.dailyGoals.get(today);
+    if (todayGoal?.completed === 1) {
+      const nextCurrent =
+        cur.lastCompletedDate === yesterday ? cur.currentStreak + 1 : 1;
+      const next: Streak = {
+        id: 1,
+        currentStreak: nextCurrent,
+        longestStreak: Math.max(cur.longestStreak, nextCurrent),
+        lastCompletedDate: today,
+      };
+      await db.settings.put({ key: SETTING_STREAK_KEY, value: next });
+      return next;
+    }
+  }
+  if (
+    cur.lastCompletedDate === today ||
+    cur.lastCompletedDate === yesterday
+  ) {
+    return cur;
+  }
+  if (cur.currentStreak === 0) return cur;
+  const next: Streak = { ...cur, currentStreak: 0 };
+  await db.settings.put({ key: SETTING_STREAK_KEY, value: next });
+  return next;
+}
+
+function ProgressBar({
+  achieved,
+  target,
+  unit,
+  label,
+}: {
+  achieved: number;
+  target: number;
+  unit: string;
+  label: string;
+}) {
+  const pct = target > 0 ? Math.min(100, (achieved / target) * 100) : 0;
+  const complete = achieved >= target;
+  return (
+    <div className="mb-4">
+      <div className="flex items-baseline justify-between mb-1">
+        <span className="text-xs text-zinc-300 font-medium">{label}</span>
+        <span
+          className={`text-xs font-mono ${complete ? 'text-emerald-400' : 'text-zinc-400'}`}
+        >
+          {Math.floor(achieved)} / {target} {unit}
+          {complete && ' ✓'}
+        </span>
+      </div>
+      <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all ${
+            complete ? 'bg-emerald-500' : 'bg-blue-500'
+          }`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
 
 function displayName(c: Content): string {
   const idLabel = `Netflix ${c.contentId}`;
@@ -40,6 +138,21 @@ export default function App() {
   const [hideMemorized, setHideMemorized] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
+  const [progressOpen, setProgressOpen] = useState(false);
+
+  // 진도/스트릭 — popup이 더 이상 안 열리므로 사이드패널이 책임.
+  // 모달 열렸을 때만 query (성능 + 무한 re-subscribe 방지). 닫혀있으면 fetch 안 함.
+  const todayGoal = useLiveQuery(
+    async () => (progressOpen ? getOrCreateTodayGoal() : undefined),
+    [progressOpen],
+  );
+  // streak는 헤더 버튼에 항상 숫자 표시해야 하므로 항상 fetch
+  const streak = useLiveQuery(async () => loadStreak(), []);
+
+  // mount 시 maintainStreak (popup이 했던 safety bump 역할 인수)
+  useEffect(() => {
+    void maintainStreakSide().catch(() => {});
+  }, []);
 
   const handleEditStart = useCallback((lineId: number) => {
     setEditingLineId(lineId);
@@ -65,6 +178,40 @@ export default function App() {
     browser.runtime.onMessage.addListener(handler);
     return () => browser.runtime.onMessage.removeListener(handler);
   }, []);
+
+  // 사이드패널에 focus 있을 때도 단축키 사용 가능하게 forward.
+  // 단, input/textarea/select에 focus 있거나 편집 모드일 땐 그 입력을 우선.
+  useEffect(() => {
+    const HANDLED_KEYS = new Set([
+      'h', 'l', 'a', 'b', 's', 'r',
+      'arrowleft', 'arrowright', 'arrowup', 'arrowdown',
+    ]);
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      // input/textarea/select/contentEditable에 focus 있으면 무시 (그 입력 우선)
+      const ae = document.activeElement as HTMLElement | null;
+      if (ae) {
+        const tag = ae.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        if (ae.isContentEditable) return;
+      }
+      // 라인 편집 중이면 무시
+      if (editingLineId != null) return;
+      // 제목 편집 중이면 무시
+      if (editingTitle) return;
+      const key = e.key.toLowerCase();
+      if (!HANDLED_KEYS.has(key)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const msg: CueloopMessage = {
+        type: 'OVERLAY_SHORTCUT',
+        payload: { key: e.key },
+      };
+      browser.runtime.sendMessage(msg).catch(() => {});
+    }
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => document.removeEventListener('keydown', onKeyDown, true);
+  }, [editingLineId, editingTitle]);
 
   // currentLineId 변경 시 해당 라인으로 스크롤
   // 토글이 켜져 있고 + 편집 중 아닐 때만 (편집 중엔 reflow 충돌 freeze 방지)
@@ -312,6 +459,14 @@ export default function App() {
             </button>
           )}
           <div className="ml-auto flex gap-1.5">
+            <button
+              type="button"
+              onClick={() => setProgressOpen(true)}
+              className="text-[10px] rounded px-1.5 py-0.5 border text-emerald-300 bg-emerald-950/60 border-emerald-800 hover:bg-emerald-900/60 cursor-pointer"
+              title="오늘 진도 + 스트릭 보기"
+            >
+              🔥 {streak?.currentStreak ?? 0}
+            </button>
             {memorizedCount > 0 && (
               <button
                 type="button"
@@ -360,6 +515,84 @@ export default function App() {
           defaultEndMs={insertDefaultEnd}
           onClose={() => setInsertOpen(false)}
         />
+      )}
+
+      {progressOpen && todayGoal && streak && (
+        <div
+          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
+          onClick={() => setProgressOpen(false)}
+        >
+          <div
+            className="bg-zinc-900 border border-zinc-700 rounded-lg max-w-sm w-full p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-base font-bold">오늘 진도</h3>
+              <button
+                type="button"
+                onClick={() => setProgressOpen(false)}
+                className="text-zinc-500 hover:text-zinc-200 text-lg leading-none cursor-pointer"
+                title="닫기"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between mb-4 pb-3 border-b border-zinc-800">
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-2xl">🔥</span>
+                <span className="text-2xl font-bold text-amber-400">
+                  {streak.currentStreak}
+                </span>
+                <span className="text-xs text-zinc-400">일 연속</span>
+              </div>
+              {streak.longestStreak > streak.currentStreak && (
+                <span
+                  className="text-[10px] text-zinc-500"
+                  title="최장 연속 기록"
+                >
+                  최장 {streak.longestStreak}일
+                </span>
+              )}
+            </div>
+
+            <p className="text-[10px] text-zinc-500 mb-2">{todayKey()} 오늘 진도</p>
+
+            <ProgressBar
+              label="학습 시간"
+              achieved={todayGoal.achievedMinutes}
+              target={todayGoal.targetMinutes}
+              unit="분"
+            />
+            <ProgressBar
+              label="100LS 카운트"
+              achieved={todayGoal.achievedListens}
+              target={todayGoal.targetListens}
+              unit="회"
+            />
+
+            {todayGoal.completed === 1 ? (
+              <div className="mt-3 text-center text-xs text-emerald-400 bg-emerald-950/40 border border-emerald-900 rounded py-1.5">
+                🎉 오늘 목표 달성!
+              </div>
+            ) : (
+              <div className="mt-3 text-center text-[10px] text-zinc-500">
+                두 항목 모두 100%면 스트릭 +1
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => {
+                setProgressOpen(false);
+                void browser.runtime.openOptionsPage();
+              }}
+              className="block w-full mt-4 px-3 py-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded cursor-pointer"
+            >
+              ⚙ 목표 변경 (설정 페이지)
+            </button>
+          </div>
+        </div>
       )}
 
       {jumpError && (

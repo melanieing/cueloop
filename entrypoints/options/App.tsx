@@ -175,11 +175,120 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 p-8 max-w-2xl mx-auto">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 p-8 max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-2">Cueloop 설정</h1>
       <p className="text-sm text-zinc-500 mb-8">
-        v0.2 — 일일 목표 + 백업 / 복원
+        v0.2 — 사용법 + 일일 목표 + 백업 / 복원
       </p>
+
+      <section className="mb-10">
+        <h2 className="text-lg font-semibold mb-3">🎯 시작하기</h2>
+
+        <ol className="space-y-3 text-sm text-zinc-300 leading-relaxed list-decimal list-inside marker:text-blue-400 marker:font-semibold">
+          <li>
+            <strong className="text-zinc-100">사이드패널 열기</strong> —
+            Netflix watch 페이지에서 Chrome 우상단의{' '}
+            <span className="inline-block px-1.5 py-0.5 bg-purple-950/40 border border-purple-800 rounded text-xs">
+              🎬 Cueloop 아이콘
+            </span>
+            을 <strong>한 번 클릭</strong>하면 사이드패널이 열립니다.
+            (한 번 더 클릭하면 닫힘 — 토글)
+          </li>
+          <li>
+            <strong className="text-zinc-100">자막 자동 캡처</strong> —
+            Netflix에서 영상을 재생하면 영어/한국어 자막이 자동으로 캡처되어
+            사이드패널에 라인 단위로 보입니다. 영상 위에는 듀얼 자막
+            오버레이가 자동 표시됩니다.
+          </li>
+          <li>
+            <strong className="text-zinc-100">제목 입력</strong> — 사이드패널
+            상단 <span className="px-1 py-0.5 bg-amber-950/40 border border-amber-800 rounded text-xs text-amber-300">✎ 제목</span>
+            {' '}버튼을 클릭해서 영상 제목을 입력해두면 드롭다운에서 찾기
+            편합니다 (Netflix가 제목을 제공하지 않아 직접 입력 필요).
+          </li>
+          <li>
+            <strong className="text-zinc-100">A-B 반복 학습 (100LS)</strong> —
+            사이드패널에서 라인의{' '}
+            <span className="text-amber-300">🔁</span> 아이콘을 클릭하거나
+            영상에서{' '}
+            <kbd className="px-1.5 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-xs font-mono">
+              L
+            </kbd>
+            {' '}키를 누르면 현재 라인을 자동 반복합니다. 들은 횟수가 진도
+            dot 색상으로 표시됩니다 (라임 → 에메랄드 → 파랑 → 보라).
+          </li>
+          <li>
+            <strong className="text-zinc-100">CustomLoop (임의 구간 반복)</strong>
+            {' '}— 자막 cue 경계가 아닌 임의 구간을 반복하고 싶으면:{' '}
+            <kbd className="px-1.5 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-xs font-mono">
+              A
+            </kbd>
+            {' '}로 시작점 마킹 →{' '}
+            <kbd className="px-1.5 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-xs font-mono">
+              B
+            </kbd>
+            {' '}로 끝점 마킹 →{' '}
+            <kbd className="px-1.5 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-xs font-mono">
+              S
+            </kbd>
+            {' '}로 라벨 저장.
+          </li>
+          <li>
+            <strong className="text-zinc-100">자막 편집</strong> — 사이드패널의
+            라인 텍스트를 클릭하면 편집 모드로 진입. 영어/한국어/메모/시작
+            시각/종료 시각 모두 수정 가능.{' '}
+            <kbd className="px-1.5 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-xs font-mono">
+              Ctrl+Enter
+            </kbd>
+            {' '}저장,{' '}
+            <kbd className="px-1.5 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-xs font-mono">
+              Esc
+            </kbd>
+            {' '}취소.
+          </li>
+          <li>
+            <strong className="text-zinc-100">외움 처리</strong> — 라인의{' '}
+            <span className="text-emerald-300">☐</span> 체크박스로 외움 토글.
+            30회 이상 들은 라인은{' '}
+            <span className="text-amber-300">✨ 외움?</span> 후보로 자동 강조됩니다.
+          </li>
+          <li>
+            <strong className="text-zinc-100">일일 목표 + 스트릭</strong> —
+            아래에서 목표 설정. 학습 시간 + 100LS 카운트 둘 다 달성하는 날마다{' '}
+            <span className="text-amber-400">🔥 스트릭</span>이 +1. 확장 아이콘에
+            연속 일수가 emerald 배지로 표시됩니다.
+          </li>
+        </ol>
+
+        <details className="mt-5 bg-zinc-900/60 border border-zinc-800 rounded p-3">
+          <summary className="text-sm font-semibold text-zinc-200 cursor-pointer">
+            ⌨ 단축키 전체 목록 (Netflix 페이지에서 사용)
+          </summary>
+          <table className="mt-3 text-xs w-full">
+            <tbody className="text-zinc-300">
+              {[
+                ['H', '한국어 자막 표시/숨김 토글'],
+                ['L', '현재 라인 반복 시작/정지'],
+                ['A', 'CustomLoop 시작점 마킹'],
+                ['B', 'CustomLoop 끝점 마킹 (자동 저장 + 반복 시작)'],
+                ['S', '진행 중인 CustomLoop에 라벨 저장'],
+                ['↑ / ↓', '이전 / 다음 라인'],
+                ['← / →', '2초 뒤로 / 앞으로'],
+                ['R', '현재 라인 처음부터 다시'],
+              ].map(([key, desc]) => (
+                <tr key={key} className="border-b border-zinc-800/60 last:border-0">
+                  <td className="py-1.5 pr-3 w-32">
+                    <kbd className="px-2 py-0.5 bg-zinc-800 border border-zinc-700 rounded font-mono">
+                      {key}
+                    </kbd>
+                  </td>
+                  <td className="py-1.5 text-zinc-400">{desc}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </details>
+      </section>
 
       <section className="mb-10">
         <h2 className="text-lg font-semibold mb-2">📊 일일 목표</h2>
@@ -226,10 +335,28 @@ export default function App() {
 
       <section className="mb-10">
         <h2 className="text-lg font-semibold mb-2">📦 백업 / 복원</h2>
+
+        <div className="text-xs text-amber-200/90 bg-amber-950/30 border border-amber-900/50 rounded p-3 mb-4 leading-relaxed">
+          <p className="font-semibold mb-1">⚠ 데이터는 어디에 저장되나요?</p>
+          <p className="mb-2">
+            Cueloop의 모든 학습 데이터는 <strong>이 브라우저 안 (IndexedDB)</strong>에만 저장됩니다.
+            외부 서버 전송 0. 다음 경우 데이터가 사라질 수 있어요:
+          </p>
+          <ul className="list-disc list-inside space-y-0.5 mb-2 text-amber-200/80">
+            <li>확장 프로그램을 삭제(uninstall)할 때</li>
+            <li>브라우저 데이터를 전체 삭제할 때 (chrome://settings/clearBrowserData)</li>
+            <li>다른 PC / 다른 브라우저 프로필로 옮길 때</li>
+            <li>컴퓨터를 재설치하거나 디스크가 망가질 때</li>
+          </ul>
+          <p>
+            <strong>👉 정기적으로 "백업 내보내기"로 JSON 파일을 안전한 곳(클라우드/USB)에 보관하세요.</strong>
+            새 환경에서는 "백업 불러오기"로 모든 데이터를 한 번에 복원할 수 있습니다.
+          </p>
+        </div>
+
         <p className="text-xs text-zinc-400 mb-5 leading-relaxed">
-          모든 학습 데이터(자막, 진도, 외움, CustomLoop, 일일 목표, 스트릭, 세션)를
-          JSON 파일로 내보내거나 불러옵니다. 다른 PC로 옮길 때, 확장 재설치 전,
-          중요한 학습 시점에 백업해두세요. 녹음 데이터(v0.3+)는 포함되지 않습니다.
+          내보내기/불러오기는 자막 · 진도 · 외움 · CustomLoop · 일일 목표 · 스트릭 · 세션을 포함합니다.
+          녹음 데이터(v0.3+)는 포함되지 않습니다.
         </p>
 
         <div className="flex flex-wrap gap-3 mb-3">

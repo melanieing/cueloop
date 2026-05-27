@@ -100,6 +100,14 @@ export type CueloopMessage =
   | {
       type: 'SESSION_TICK';
       payload: { seconds: number };
+    }
+  | {
+      type: 'OVERLAY_SHORTCUT';
+      payload: { key: string };
+    }
+  | {
+      type: 'OVERLAY_SHORTCUT_IN_TAB';
+      payload: { key: string };
     };
 
 export type CueloopMessageType = CueloopMessage['type'];

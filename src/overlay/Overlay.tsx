@@ -229,6 +229,16 @@ export function Overlay({ video }: OverlayProps) {
         repeatCountRef.current = 0;
         setRepeating(null);
         setRepeatCount(0);
+      } else if (m?.type === 'OVERLAY_SHORTCUT_IN_TAB') {
+        // 사이드패널이 forward한 단축키 — 기존 keydown listener가 재처리하도록 fake event dispatch.
+        // capture phase listener라 즉시 같은 처리 진입.
+        document.dispatchEvent(
+          new KeyboardEvent('keydown', {
+            key: m.payload.key,
+            bubbles: true,
+            cancelable: true,
+          }),
+        );
       }
     };
     browser.runtime.onMessage.addListener(handler);

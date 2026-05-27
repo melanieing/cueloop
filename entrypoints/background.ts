@@ -219,6 +219,19 @@ export default defineBackground(() => {
     await updateBadge();
   })();
 
+  // 첫 설치 시 옵션 페이지(사용법 onboarding) 자동 열기
+  browser.runtime.onInstalled.addListener((details) => {
+    if (details.reason === 'install') {
+      void browser.runtime.openOptionsPage().catch(() => {});
+    }
+  });
+
+  // 확장 아이콘 클릭 시 사이드패널 자동 열림 (popup 대신).
+  // popup도 manifest에 정의되어 있지만 이 설정이 우선.
+  void browser.sidePanel
+    .setPanelBehavior({ openPanelOnActionClick: true })
+    .catch(() => {});
+
   browser.alarms.onAlarm.addListener(async (alarm) => {
     if (alarm.name === 'cueloop-midnight') {
       await maintainStreak();
@@ -389,6 +402,16 @@ export default defineBackground(() => {
 
     if (message?.type === 'STOP_REPEAT') {
       const fwd: CueloopMessage = { type: 'STOP_REPEAT_IN_TAB' };
+      void forwardToWatchTabs(fwd);
+      sendResponse({ ok: true });
+      return true;
+    }
+
+    if (message?.type === 'OVERLAY_SHORTCUT') {
+      const fwd: CueloopMessage = {
+        type: 'OVERLAY_SHORTCUT_IN_TAB',
+        payload: { key: message.payload.key },
+      };
       void forwardToWatchTabs(fwd);
       sendResponse({ ok: true });
       return true;
