@@ -1,6 +1,7 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import { db, type Line, type LineProgress } from '@/src/db';
 import { broadcastContentUpdate } from '@/src/lib/broadcastUpdate';
+import { parseTimeToMs } from './InsertLineModal';
 
 export function formatTime(ms: number): string {
   const totalSec = Math.floor(ms / 1000);
@@ -270,6 +271,9 @@ function EditRow({
   const [textEn, setTextEn] = useState(line.textEn);
   const [textKo, setTextKo] = useState(line.textKo);
   const [note, setNote] = useState(line.note ?? '');
+  const [startInput, setStartInput] = useState(formatTime(line.startMs));
+  const [endInput, setEndInput] = useState(formatTime(line.endMs));
+  const [timeError, setTimeError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const firstFieldRef = useRef<HTMLTextAreaElement>(null);
 
@@ -283,19 +287,34 @@ function EditRow({
   const dirty =
     textEn !== line.textEn ||
     textKo !== line.textKo ||
-    (note || '') !== (line.note ?? '');
+    (note || '') !== (line.note ?? '') ||
+    startInput !== formatTime(line.startMs) ||
+    endInput !== formatTime(line.endMs);
 
   async function save() {
     if (!line.id || !dirty) {
       onDone();
       return;
     }
+    const newStartMs = parseTimeToMs(startInput);
+    const newEndMs = parseTimeToMs(endInput);
+    if (newStartMs == null || newEndMs == null) {
+      setTimeError('시각 형식이 올바르지 않습니다 (예: 01:23.456 또는 ms 숫자)');
+      return;
+    }
+    if (newEndMs <= newStartMs) {
+      setTimeError('종료 시각은 시작 시각보다 커야 합니다');
+      return;
+    }
+    setTimeError(null);
     setBusy(true);
     try {
       await db.lines.update(line.id, {
         textEn,
         textKo,
         note: note.trim() || undefined,
+        startMs: newStartMs,
+        endMs: newEndMs,
         editedAt: Date.now(),
       });
       broadcastContentUpdate(line.contentId);
@@ -336,13 +355,34 @@ function EditRow({
       className="px-4 py-3 border-b border-zinc-700 bg-zinc-900 ring-1 ring-blue-500/40"
       onKeyDown={handleKeyDown}
     >
-      <div className="flex items-baseline gap-2 mb-2 text-xs text-zinc-500 font-mono">
+      <div className="flex items-center gap-2 mb-2 text-xs text-zinc-500 font-mono">
         <span className="text-zinc-600">#{index + 1}</span>
-        <span>{formatTime(line.startMs)}</span>
+        <input
+          type="text"
+          value={startInput}
+          onChange={(e) => {
+            setStartInput(e.target.value);
+            setTimeError(null);
+          }}
+          className="w-24 bg-zinc-950 text-zinc-200 rounded px-1.5 py-0.5 border border-zinc-700 focus:border-blue-500 focus:outline-none"
+          title="시작 시각 (MM:SS.mmm 또는 ms)"
+        />
         <span className="text-zinc-700">→</span>
-        <span>{formatTime(line.endMs)}</span>
+        <input
+          type="text"
+          value={endInput}
+          onChange={(e) => {
+            setEndInput(e.target.value);
+            setTimeError(null);
+          }}
+          className="w-24 bg-zinc-950 text-zinc-200 rounded px-1.5 py-0.5 border border-zinc-700 focus:border-blue-500 focus:outline-none"
+          title="종료 시각 (MM:SS.mmm 또는 ms)"
+        />
         <span className="ml-auto text-blue-400">편집 중</span>
       </div>
+      {timeError && (
+        <div className="text-[11px] text-red-400 mb-2">⚠ {timeError}</div>
+      )}
       <label className="block text-[10px] uppercase tracking-wide text-zinc-500 mb-1">
         English
       </label>

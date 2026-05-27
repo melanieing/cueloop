@@ -130,7 +130,9 @@ function isTypingInInput(): boolean {
   return false;
 }
 
-type RepeatingLine = { kind: 'line'; line: Line; displayEndMs: number };
+// 라인 반복 종료 시점은 line.endMs(사용자가 편집한 값)를 직접 사용.
+// 자막 *표시* 연장(line.endMs ~ 다음 라인 startMs)은 findCurrentLineIdx에서 별도 처리.
+type RepeatingLine = { kind: 'line'; line: Line };
 type RepeatingCustom = {
   kind: 'custom';
   loopId: number;
@@ -183,7 +185,6 @@ export function Overlay({ video }: OverlayProps) {
           repeatingRef.current = {
             kind: 'line',
             line: fetched[updatedIdx],
-            displayEndMs: computeDisplayEndMs(fetched, updatedIdx),
           };
           setRepeating(repeatingRef.current);
         } else {
@@ -216,8 +217,7 @@ export function Overlay({ video }: OverlayProps) {
         const idx = sorted.findIndex((l) => l.id === lineId);
         if (idx === -1) return;
         const line = sorted[idx];
-        const displayEndMs = computeDisplayEndMs(sorted, idx);
-        const newRep: RepeatingLine = { kind: 'line', line, displayEndMs };
+        const newRep: RepeatingLine = { kind: 'line', line };
         repeatingRef.current = newRep;
         repeatCountRef.current = 0;
         setRepeating(newRep);
@@ -250,7 +250,8 @@ export function Overlay({ video }: OverlayProps) {
         const now = performance.now();
         const seekCooldownActive = now - lastSeekAtRef.current < 250;
         const startMs = rep.kind === 'line' ? rep.line.startMs : rep.startMs;
-        const endMs = rep.kind === 'line' ? rep.displayEndMs : rep.endMs;
+        // 라인 반복은 line.endMs (사용자가 편집한 값) 직접 사용. 자막 표시는 별도.
+        const endMs = rep.kind === 'line' ? rep.line.endMs : rep.endMs;
         if (
           !seekCooldownActive &&
           (timeMs < startMs - 200 || timeMs > endMs + 800)
@@ -371,8 +372,7 @@ export function Overlay({ video }: OverlayProps) {
       showToast('라인을 찾을 수 없음');
       return;
     }
-    const displayEndMs = computeDisplayEndMs(sorted, idx);
-    repeatingRef.current = { kind: 'line', line: cur, displayEndMs };
+    repeatingRef.current = { kind: 'line', line: cur };
     repeatCountRef.current = 0;
     setRepeating(repeatingRef.current);
     setRepeatCount(0);
