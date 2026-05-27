@@ -2,6 +2,17 @@
 
 > Phase 1 무료 공개용. v0.2.0 기준.
 
+## 📋 등록 form에 채울 정보 (빠른 참조)
+
+| Web Store form 항목 | 값 |
+|---|---|
+| 확장 이름 | Cueloop — 영화로 영어 100번 듣기 |
+| 카테고리 | Education |
+| 공식 URL (Homepage) | https://github.com/melanieing/cueloop |
+| 개인정보처리방침 URL | https://melanieing.github.io/cueloop/PRIVACY_POLICY |
+| 지원/문의 이메일 | melanie0617@gmail.com |
+| 개발자 표시 이름 | melanieing |
+
 ## ✓ 이름 / 카테고리 / 언어
 
 | 항목 | 값 |
@@ -205,7 +216,8 @@ Chrome Web Store 권장 해상도: **1280×800 또는 640×400 (PNG/JPG)**. 5장
 
 - [ ] Chrome Web Store 개발자 계정 등록 ($5 일회성)
 - [ ] privacy_policy 호스팅 URL 확보 (GitHub Pages / Notion / 개인 도메인)
-- [ ] privacy_policy.md의 `[TODO]` placeholder 모두 채우기 (이메일, GitHub URL)
+- [x] privacy_policy.md의 placeholder 채움 (이메일, GitHub URL — 2026-05-27)
+- [x] GitHub Pages 활성화 (main /docs) → https://melanieing.github.io/cueloop/PRIVACY_POLICY
 - [ ] 스크린샷 5장 캡처
 - [ ] 확장 zip 파일 (`pnpm zip` — wxt가 자동 생성)
 - [ ] 한 줄 설명 / 상세 설명 / 권한 정당화 텍스트 복붙 준비

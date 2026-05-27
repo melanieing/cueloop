@@ -55,8 +55,8 @@ Cueloop은 만 13세 미만 사용자를 대상으로 하지 않습니다.
 
 ### 8. 문의
 
-- 이메일: **[TODO: 연락 이메일 채우기]**
-- GitHub: **[TODO: 저장소 URL 채우기]**
+- 이메일: melanie0617@gmail.com
+- GitHub: https://github.com/melanieing/cueloop
 
 ---
 
@@ -112,5 +112,5 @@ Changes to this policy will be reflected in this document in the GitHub reposito
 
 ### 8. Contact
 
-- Email: **[TODO: contact email]**
-- GitHub: **[TODO: repository URL]**
+- Email: melanie0617@gmail.com
+- GitHub: https://github.com/melanieing/cueloop
