@@ -4,8 +4,8 @@
 
 ## 현재 상태
 
-- **단계**: v0.2 / **🎉 선택된 모든 chunk 완료** (Day 1~7, Day 10~12, Day 14 백업). Day 8/9 스코프 제외. Day 13(통계), Day 14 Web Store + 어댑터 추상화는 v0.3 이후.
-- **마지막 업데이트**: 2026-05-27
+- **단계**: v0.2 / **🚀 Web Store 심사 대기 중** (Phase 1 무료 출시). 첫 제출 → UX 개선 → 재제출 완료(2026-05-28). 심사 1-3일 대기.
+- **마지막 업데이트**: 2026-05-28
 - **빌드 산출물**: `.output/chrome-mv3/` (production 빌드). dev watch는 WSL에서 작동 안 함 ([troubleshooting #5](./troubleshooting.md))
 - **핵심 차별점 (2가지)**:
   - CustomLoop (임의 A-B 구간 반복) — Day 2 schema 반영, Day 6 구현
@@ -183,22 +183,51 @@ v0.3에서 음성 인식 발화 검증과 함께 통합 검토.
 
 **Phase 0 — 현재 상태 (✓ 완료)**: 본인 학습용 unpacked 확장. 핵심 기능 + 백업까지 완비.
 
-**Phase 1 — 무료 공개 + 운영 검증** (진행 중)
-- [x] **contents.title 편집 UI** ([Day 4.5 보강](#)) — 사이드패널 헤더 ✎ 버튼. 자동 추출 대신 사용자가 직접 1회 입력. 일반 사용자 UX 정상화.
-- [x] `docs/PRIVACY_POLICY.md` 초안 작성 (한/영, TODO placeholder 2개: 이메일 + GitHub URL)
-- [x] `docs/WEB_STORE_LISTING.md` 초안 작성 — 짧은 설명 / 상세 설명(한/영) / 권한 정당화 / 스크린샷 가이드 / 등록 체크리스트
-- [ ] Privacy policy 호스팅 URL 확보 (GitHub Pages or Notion or 개인 도메인)
-- [ ] `[TODO]` placeholder 채우기 (이메일, GitHub URL)
-- [ ] 스크린샷 5장 캡처 (1280×800)
-- [ ] Chrome Web Store 개발자 계정 등록 ($5 일회)
-- [ ] `pnpm zip`으로 확장 zip 생성
-- [ ] Web Store 첫 등록 + 심사 통과 (보통 1-3일, 새 확장은 더 길 수 있음)
+**Phase 1 — 무료 공개 + 운영 검증** (심사 대기 중)
+
+기본 출시 자료:
+- [x] **contents.title 편집 UI** ([Day 4.5 보강](#)) — 사이드패널 헤더 ✎ 버튼. 자동 추출 대신 사용자가 직접 1회 입력. Netflix가 `/watch/` 페이지에선 title metadata를 client에 안 보내서 자동 추출 포기 결정(2026-05-27). 일반 사용자 UX 정상화.
+- [x] `docs/PRIVACY_POLICY.md` 작성 (한/영) + GitHub Pages 호스팅 → https://melanieing.github.io/cueloop/PRIVACY_POLICY
+- [x] `docs/WEB_STORE_LISTING.md` 작성 — quick-ref 표 + 짧은/상세 설명(한/영) + 권한 정당화 + 스크린샷 가이드
+- [x] 스크린샷 5장 캡처 + ImageMagick으로 1280×800 변환 (다크 캔버스 padding)
+- [x] Chrome Web Store 개발자 계정 등록 ($5 일회)
+- [x] `pnpm zip`으로 확장 zip 생성 → `cueloop-0.2.0-chrome.zip` (~260 kB)
+- [x] Web Store 첫 등록 (2026-05-27)
+
+첫 등록 후 UX 개선 (재제출 전 추가 작업):
+- [x] **사이드패널 단일 클릭 진입** ([troubleshooting #23](./troubleshooting.md)) — `chrome.sidePanel.setPanelBehavior({openPanelOnActionClick:true})`로 cueloop 아이콘 click → 사이드패널 토글. popup auto-open 폐지.
+- [x] **Popup → 사이드패널 in-page 모달 통합** — 사이드패널 헤더에 `🔥 N` 버튼 + 클릭 시 진도 바 + 스트릭 + 오늘 달성 박스 모달. popup의 `maintainStreak` safety bump 역할도 사이드패널로 이전.
+- [x] **키보드 단축키 forwarding** — 사이드패널에 focus가 있어도 H/L/A/B/S/R/방향키가 동작 (`OVERLAY_SHORTCUT` 메시지 → background → overlay fake KeyboardEvent dispatch). input/편집 중일 땐 그 입력 우선.
+- [x] **첫 설치 시 옵션 페이지 자동 열림** — `chrome.runtime.onInstalled` (reason==='install')로 onboarding 자동 노출.
+- [x] **🎯 시작하기 onboarding 섹션** — 옵션 페이지 상단에 8단계 사용법 + 단축키 cheat sheet (접기). 일반 사용자 첫 진입 학습 곡선 완화.
+- [x] **옵션 페이지 가독성** — `max-w-2xl` → `max-w-4xl`, 별도 탭 열림 ([troubleshooting #22](./troubleshooting.md): WXT 0.20 manifest override 우회 — entrypoint HTML의 `<meta name="manifest.open_in_tab">`).
+- [x] **데이터 안전 안내** — 옵션 페이지 백업 섹션에 amber 경고 박스 (4가지 손실 시나리오 + 백업 권장). Listing에 "💾 Where is data stored?" 한/영 항목 추가.
+- [x] **라인 시각 편집** ([commit 1a31966](#)) — EditRow에 startMs/endMs input 추가 (InsertLineModal의 `parseTimeToMs` 재사용). 시각 변경 시 검증(`endMs > startMs`).
+- [x] **라인 반복 endMs ≠ displayEndMs 분리** ([commit 1a31966](#)) — 자막 표시 시간(다음 라인 startMs까지 연장 UX)과 반복 재생 endMs(사용자 편집한 line.endMs 직접 사용)를 분리. 사용자가 endMs를 줄여도 반복 재생에 즉시 반영.
+- [x] **확장 아이콘 교체** — `public/icon/*.png` 5개 사이즈를 ImageMagick으로 `cueloop_small_icon_removebg.png`에서 변환. 투명 배경. 배지 색은 amber → emerald 변경.
+
+재제출:
+- [x] Web Store 재제출 (2026-05-28) — 같은 v0.2.0, 새 zip 업로드, 심사관 메모로 UX 개선 사유 명시.
+- [ ] **심사 통과 대기** (1-3일 예상)
+- [ ] 출시 후 첫 사용자 인지 — 본인 + 가까운 1-2명에게 공유
+
+Phase 1 운영 모니터링 (출시 후):
+- [ ] 매주 사용자 수 + 평점 + 리뷰 체크
+- [ ] Netflix DOM 변경 발생 시 핫픽스 시간 트래킹 (목표: 48시간 내)
+- [ ] 자막 ingest 실패율 모니터링
+- [ ] 1~3개월 운영 후 Phase 2 (freemium 유료화) 진입 여부 결정
 - [ ] **1~3개월 운영 모니터링**:
   - 사용자 수 추세
   - Netflix DOM 변경 발생 시 핫픽스 가능 시간 트래킹
   - 사용자 피드백 (평점, 리뷰, 이메일)
   - 자막 ingest 실패율 등 안정성 지표
 - [ ] 진짜 학습 가치 검증 — 1~2명 외부 사용자가 한 달+ 사용 후 후기
+
+**Phase 1 운영 결정 사항 정리** (2026-05-27~28):
+- Netflix의 `/watch/` 페이지가 영상 title metadata를 client에 안 보내는 정책 확인 (falcor cache의 `videos[id].summary.value.title`도 undefined). 자동 추출 포기 → 사이드패널 ✎ 제목 UI로 사용자가 1회 직접 입력하는 방향으로 전환.
+- 시장조사 결과 + 위험 평가로 **즉시 freemium → Phase 1 무료 검증 우선**으로 결정. v0.2.0 자체에 결제 인프라 없음.
+- 사용자 본인 `unpacked` ID와 Web Store 발급 ID가 서로 다른 origin → 출시 후 본인이 정식 버전 설치 시 학습 데이터 분리. **반드시 unpacked 버전에서 "📥 백업 내보내기" → 정식 버전에서 "📤 백업 불러오기"** 절차 필요.
+- popup은 manifest에 남겨두지만 action click이 사이드패널로 가서 사실상 unreachable. v0.3에서 manifest 정리 검토.
 
 **Phase 2 — freemium PRO 도입** (Phase 1 검증 후 결정)
 - [ ] **수익 모델 결정**: freemium 권장 (LR 패턴) — 무료(영화 2편 / CustomLoop 5개 등 제한) + PRO(무제한 + 일일 목표 + 스트릭 + 백업)

@@ -545,3 +545,56 @@ UnhandledPromiseRejection: ... reason "[object Object]"
 - UX 일관성 측면에서도 in-page modal이 더 나음 (다크 테마, 커스텀 버튼 라벨, 위험 액션 시각 강조 등).
 
 ---
+
+### #22. WXT options entrypoint가 wxt.config.ts의 manifest 설정을 덮어쓴다 (`open_in_tab`)
+
+**증상**: 옵션 페이지가 `chrome://extensions?options=...` 형태의 **모달**로만 열려서 가로 폭이 Chrome이 강제하는 ~600px에 고정. Tailwind `max-w-4xl` 적용 안 됨. 사용자가 옵션 페이지를 읽기 불편.
+
+**1차 시도 (실패)**: `wxt.config.ts`의 `manifest.options_ui.open_in_tab: true` 추가 → 빌드 후 `manifest.json` 직접 열어 확인하니 `"options_ui":{"open_in_tab":false,...}`로 **WXT가 false로 override**해서 효과 없음.
+
+**원인**: WXT 0.20이 `entrypoints/options/index.html`을 자동 인식해서 options entrypoint로 등록할 때, 자체 default(`open_in_tab: false`)로 manifest를 생성. wxt.config.ts의 `manifest.options_ui` 설정은 entrypoint 자동 등록 결과에 덮어쓰임 (entrypoint 등록이 후에 일어남).
+
+**해결**: entrypoint HTML 자체에 `<meta>` 태그로 명시:
+```html
+<head>
+  <meta name="manifest.open_in_tab" content="true" />
+  <title>Cueloop · 설정</title>
+</head>
+```
+빌드 결과 `manifest.json`에 `"open_in_tab":true` 정상 반영. wxt.config.ts의 중복 설정은 제거하고 사유 주석만 남김.
+
+**교훈**:
+- WXT 0.20에서 entrypoint별 manifest 속성은 **entrypoint 파일의 `<meta>` 태그가 우선**. wxt.config.ts의 manifest section은 entrypoint 자동 인식에서 덮어쓰일 수 있음.
+- 빌드 후 `.output/chrome-mv3/manifest.json`을 직접 확인하는 습관 — 빌드 시간 1초라 빠른 sanity check 가능.
+- WXT 0.21+ 또는 다른 메이저 버전에선 동작 다를 수 있음. 버전 업 시 재검증.
+
+---
+
+### #23. Web Store 등록 후 UX 개선 — Action click을 popup이 아닌 sidepanel로
+
+**상황** (Phase 1 출시 직전): 확장 아이콘 클릭 시 popup이 뜨는데, 사용자가 사이드패널을 열려면 "우클릭 → 측면 패널 열기" 두 단계 필요. 더 직관적인 UX 요구.
+
+**원인**: manifest의 `action.default_popup: 'popup.html'`만 정의돼있어서 click → popup이 default. side panel은 별도로 열어야 함.
+
+**해결** (`chrome.sidePanel.setPanelBehavior` API):
+```ts
+// defineBackground 콜백 안에서
+void browser.sidePanel
+  .setPanelBehavior({ openPanelOnActionClick: true })
+  .catch(() => {});
+```
+이 한 줄로 action click이 popup 대신 sidepanel을 토글. popup은 manifest에 남아있지만 자동으로 안 열림.
+
+**Trade-off + 후속 작업**: popup의 진도/스트릭 UI가 사용자에게서 사라짐. **사이드패널 헤더에 🔥 N emerald 버튼 추가 → 클릭 시 in-page 모달로 popup과 동일 내용 표시**로 대체. popup이 했던 `maintainStreak` safety bump 역할도 사이드패널로 이동 (mount 시 한 번).
+
+**키보드 단축키 forwarding** (같은 시점에 진행): 사이드패널에 focus가 있을 때도 H/L/A/B/S/R/방향키가 동작하도록:
+- 사이드패널 `document.addEventListener('keydown', ...)` 추가
+- input/textarea/select/contentEditable에 focus 있거나 라인 편집·제목 편집 중이면 무시
+- 그 외엔 `OVERLAY_SHORTCUT` 메시지를 background로 → `OVERLAY_SHORTCUT_IN_TAB`로 forward → overlay에서 fake `KeyboardEvent` dispatch → 기존 keydown listener가 동일 처리
+
+**교훈**:
+- `setPanelBehavior` 호출도 background top-level이 아닌 `defineBackground` 콜백 안에서 (troubleshooting #20과 같은 원칙).
+- popup → 사이드패널 모달 통합 패턴은 manifest 변경 없이 가능. popup.html은 그대로 두고 action behavior만 변경.
+- 키보드 forward에서 fake `KeyboardEvent` dispatch는 기존 listener 재활용 깔끔. 단 `isTypingInInput()` 체크가 Netflix 페이지 activeElement 기준으로 동작하니 Netflix 내부 input focus 케이스만 잠재 영향 (실사용 거의 없음).
+
+---
