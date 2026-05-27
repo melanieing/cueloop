@@ -220,18 +220,26 @@ Chrome Web Store 권장 해상도: **1280×800 또는 640×400 (PNG/JPG)**. 5장
 
 ## ✓ 등록 전 체크리스트
 
-- [ ] Chrome Web Store 개발자 계정 등록 ($5 일회성)
-- [ ] privacy_policy 호스팅 URL 확보 (GitHub Pages / Notion / 개인 도메인)
+- [x] Chrome Web Store 개발자 계정 등록 ($5 일회성) (2026-05-27)
+- [x] privacy_policy 호스팅 URL 확보 → https://melanieing.github.io/cueloop/PRIVACY_POLICY (GitHub Pages, main /docs)
 - [x] privacy_policy.md의 placeholder 채움 (이메일, GitHub URL — 2026-05-27)
-- [x] GitHub Pages 활성화 (main /docs) → https://melanieing.github.io/cueloop/PRIVACY_POLICY
-- [ ] 스크린샷 5장 캡처
-- [ ] 확장 zip 파일 (`pnpm zip` — wxt가 자동 생성)
-- [ ] 한 줄 설명 / 상세 설명 / 권한 정당화 텍스트 복붙 준비
-- [ ] 첫 등록 후 심사 대기 (보통 1-3일, 새 확장은 더 길 수 있음)
+- [x] GitHub Pages 활성화 (main /docs)
+- [x] 스크린샷 5장 캡처 + ImageMagick으로 1280×800 cueloop-dark 캔버스 padding 변환
+- [x] 확장 zip 파일 (`pnpm zip`) — `cueloop-0.2.0-chrome.zip` (~260 kB)
+- [x] 한 줄 설명 / 상세 설명(한/영) / 권한 정당화 / 데이터 안전(💾) 항목 작성
+- [x] **1차 제출** (2026-05-27) — 심사 대기 도중 UX 개선 작업 발견하여 검토 취소
+- [x] **재제출** (2026-05-28) — 같은 v0.2.0, UX 개선 반영 zip + 갱신된 listing 텍스트
+- [ ] **심사 통과 대기 중** (1-3일 예상)
 
-## ✓ 등록 후 운영 (Phase 1 모니터링)
+## ✓ 등록 후 운영 (Phase 1 모니터링) — 출시 후 시작
 
-- [ ] 매주 사용자 수 + 평점 + 리뷰 체크
+- [ ] **본인 unpacked → 정식 버전 데이터 이전** (출시 직후 가장 먼저):
+  - unpacked 버전 옵션 페이지에서 "📥 백업 내보내기" 실행 → 안전한 곳에 보관
+  - Web Store 정식 버전 설치
+  - 정식 버전 옵션 페이지에서 "📤 백업 불러오기" → 동일 JSON 선택 → 복원
+  - 동작 확인 후 unpacked 버전 제거 (선택)
+- [ ] 본인 + 가까운 1-2명에게 공유, 첫 실사용 피드백 수집
+- [ ] 매주 사용자 수 + 평점 + 리뷰 체크 (Web Store 개발자 콘솔)
 - [ ] Netflix DOM 변경 발생 시 핫픽스 시간 트래킹 (목표: 48시간 내)
 - [ ] 자막 ingest 실패율 모니터링 (필요시 사용자 보고용 채널 추가)
-- [ ] 1~3개월 운영 후 Phase 2 (freemium 유료화) 진입 여부 결정
+- [ ] 1~3개월 운영 후 Phase 2 (freemium 유료화) 진입 여부 결정 — KPI: 정기 사용자 수, Netflix 안정성 트랙 레코드
