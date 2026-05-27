@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+.output/
+.wxt/
+dist/
+build/
+*.zip
+
+# Personal Claude Code memory (개인 메모)
+CLAUDE.local.md
+.claude/settings.local.json
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+# Windows alternate data stream (WSL이 Windows에서 복사한 파일에 자동 생성)
+*:Zone.Identifier
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# TypeScript
+*.tsbuildinfo
