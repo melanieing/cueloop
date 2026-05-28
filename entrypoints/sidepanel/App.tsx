@@ -371,7 +371,8 @@ export default function App() {
       broadcastContentUpdate(effectiveContentId);
       setSelectedLineIds(new Set());
       setConfirmBulkDelete(false);
-      // 선택 모드는 유지 — 사용자가 더 지울 수도 있고 ESC로 종료 가능
+      // 삭제 후 선택 모드 자동 종료 — 일괄 삭제 완료가 자연스러운 흐름의 끝
+      setSelectionMode(false);
     } catch (err) {
       setJumpError(`일괄 삭제 실패: ${String(err)}`);
       setTimeout(() => setJumpError(null), 4000);
