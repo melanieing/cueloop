@@ -4,7 +4,7 @@
 
 ## 현재 상태
 
-- **단계**: v0.2 / **🚀 Web Store 심사 대기 중** (Phase 1 무료 출시). 첫 제출 → UX 개선 → 재제출 완료(2026-05-28). 심사 1-3일 대기.
+- **단계**: v0.2 / **🚀 Web Store 심사 대기 중** (Phase 1 무료 출시). 첫 제출 → UX 개선 → 재제출 → 콘텐츠 관리/FAQ 추가 후 2차 재제출(2026-05-28). 심사 대기.
 - **마지막 업데이트**: 2026-05-28
 - **빌드 산출물**: `.output/chrome-mv3/` (production 빌드). dev watch는 WSL에서 작동 안 함 ([troubleshooting #5](./troubleshooting.md))
 - **핵심 차별점 (2가지)**:
@@ -206,9 +206,16 @@ v0.3에서 음성 인식 발화 검증과 함께 통합 검토.
 - [x] **라인 반복 endMs ≠ displayEndMs 분리** ([commit 1a31966](#)) — 자막 표시 시간(다음 라인 startMs까지 연장 UX)과 반복 재생 endMs(사용자 편집한 line.endMs 직접 사용)를 분리. 사용자가 endMs를 줄여도 반복 재생에 즉시 반영.
 - [x] **확장 아이콘 교체** — `public/icon/*.png` 5개 사이즈를 ImageMagick으로 `cueloop_small_icon_removebg.png`에서 변환. 투명 배경. 배지 색은 amber → emerald 변경.
 
+콘텐츠 관리 + 데이터 위생 (2차 재제출 전 추가):
+- [x] **콘텐츠 삭제** — select 박스 옆 🗑 버튼 + in-page confirm 모달. 콘텐츠 + lines/lineProgress/customLoops/sessions/recordings cascade 삭제 (Dexie transaction). dailyGoals/streak 보존. 삭제 대상이 현재 manual 선택이면 자동 연동 복귀.
+- [x] **브라우즈 hover 미리보기 ingest 차단** ([troubleshooting #24](./troubleshooting.md)) — content script가 현재 URL이 `/watch/{id}`이고 그 id가 캡처된 movieId와 일치할 때만 ingest. 썸네일 hover 미리보기 자막이 쓰레기 콘텐츠로 들어오던 문제 해결.
+- [x] **옵션 페이지 + README FAQ** — 콘텐츠 식별 방식(Netflix video ID 안정성), 쓰레기 콘텐츠 정리, 제목 직접 입력, 단축키 포커스 조건.
+- [x] **이중 언어 README** — 한/영. pitch + LR 비교 + 기능 + 단축키 + privacy + 설치 + 개발 셋업 + FAQ.
+
 재제출:
-- [x] Web Store 재제출 (2026-05-28) — 같은 v0.2.0, 새 zip 업로드, 심사관 메모로 UX 개선 사유 명시.
-- [ ] **심사 통과 대기** (1-3일 예상)
+- [x] Web Store 1차 재제출 (2026-05-28) — UX 개선 (onboarding, 단일 클릭 사이드패널, 진도 모달).
+- [x] Web Store 2차 재제출 (2026-05-28) — 콘텐츠 삭제 + hover 차단 + FAQ 포함.
+- [ ] **심사 통과 대기** (이후 추가 개선은 v0.2.1 후속 업데이트로 모음)
 - [ ] 출시 후 첫 사용자 인지 — 본인 + 가까운 1-2명에게 공유
 
 Phase 1 운영 모니터링 (출시 후):

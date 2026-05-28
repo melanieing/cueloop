@@ -598,3 +598,27 @@ void browser.sidePanel
 - 키보드 forward에서 fake `KeyboardEvent` dispatch는 기존 listener 재활용 깔끔. 단 `isTypingInInput()` 체크가 Netflix 페이지 activeElement 기준으로 동작하니 Netflix 내부 input focus 케이스만 잠재 영향 (실사용 거의 없음).
 
 ---
+
+### #24. Netflix 브라우즈 페이지 썸네일 hover 미리보기가 자막을 캡처해 쓰레기 콘텐츠 양산
+
+**증상**: 사용자가 `netflix.com/browse` 등에서 영화 클릭 없이 **썸네일에 마우스만 올려도** Netflix가 미리보기 영상을 자동 재생. 그 미리보기의 `timedtexttracks` JSON이 MAIN world의 `JSON.parse` hijack에 잡혀 background로 forward → ingest → 사이드패널 select 박스에 보지도 않은 콘텐츠가 쌓임. 개발 중 테스트 + 실사용 둘 다 문제.
+
+**원인**: `inject.content.ts`의 JSON.parse hijack은 페이지에서 발생하는 모든 timedtext fetch를 무차별 캡처. hover 미리보기도 일반 재생과 동일하게 자막을 fetch하므로 구분 없이 잡힘.
+
+**해결**: `content.ts`의 `cueloop/timedtext` 핸들러에서 **현재 URL 가드** 추가.
+```ts
+const currentMovieId = currentMovieIdFromUrl(); // /watch/(\d+) 매칭
+if (currentMovieId !== detail.movieId) {
+  // 브라우즈 hover 미리보기 또는 watch 중 다른 영화 hover → 무시
+  return; // seenMovies에 add 안 함 → 실제 watch 진입 시 재캡처되면 정상 ingest
+}
+```
+- 현재 페이지가 `/watch/{id}`이고 그 `{id}`가 캡처된 movieId와 **둘 다 일치**할 때만 ingest.
+- 브라우즈 페이지는 URL이 `/browse`·`/title/...`라 `currentMovieIdFromUrl()`이 null → 무시.
+- watch 중 다른 영화 hover는 URL movieId ≠ 캡처 movieId → 무시.
+
+**timing 주의**: Netflix는 SPA라 watch 진입 시 URL 변경이 timedtext fetch보다 먼저 일어나는 게 일반적이라 정상 ingest됨. 무시된 경우 `seenMovies`에 add하지 않으므로, 혹시 첫 캡처가 URL 변경 전이었어도 재캡처 시 ingest 가능. 실사용 검증 결과 누락 없음.
+
+**교훈**:
+- 페이지 전역 hijack(JSON.parse, fetch 등)은 "원하는 컨텍스트"만 통과시키는 가드가 필수. 캡처는 광범위하게 하되 **소비 시점에 컨텍스트 검증**.
+- Netflix hover 미리보기처럼 사용자가 의도하지 않은 자동 재생이 데이터 오염원이 될 수 있음. URL/movieId 일치는 "사용자가 실제로 그 콘텐츠를 보고 있다"는 신뢰할 만한 신호.
