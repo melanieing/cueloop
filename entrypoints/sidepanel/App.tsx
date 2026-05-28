@@ -136,6 +136,7 @@ export default function App() {
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
   const [editingLineId, setEditingLineId] = useState<number | null>(null);
   const [hideMemorized, setHideMemorized] = useState(false);
+  const [showOnlyNeedsReview, setShowOnlyNeedsReview] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
   const [progressOpen, setProgressOpen] = useState(false);
@@ -442,14 +443,37 @@ export default function App() {
     return n;
   }, [lines, progressMap]);
 
-  // 외움 필터링이 켜져 있으면 외운 라인은 표시에서 제외
+  const needsReviewCount = useMemo(() => {
+    if (!lines) return 0;
+    let n = 0;
+    for (const l of lines) {
+      if (l.needsReview === 1) n++;
+    }
+    return n;
+  }, [lines]);
+
+  // 마지막 검토 라인을 해제하면 필터 자동 OFF — 빈 화면 + 토글 사라지는 trap 방지
+  useEffect(() => {
+    if (showOnlyNeedsReview && needsReviewCount === 0) {
+      setShowOnlyNeedsReview(false);
+    }
+  }, [showOnlyNeedsReview, needsReviewCount]);
+
+  // 필터링 — 외움 숨김 + 검토 필요만 표시
   const displayLines = useMemo(() => {
-    if (!lines || !hideMemorized) return lines;
-    return lines.filter((l) => {
-      if (l.id == null) return true;
-      return progressMap.get(l.id)?.isMemorized !== 1;
-    });
-  }, [lines, hideMemorized, progressMap]);
+    if (!lines) return lines;
+    let result = lines;
+    if (hideMemorized) {
+      result = result.filter((l) => {
+        if (l.id == null) return true;
+        return progressMap.get(l.id)?.isMemorized !== 1;
+      });
+    }
+    if (showOnlyNeedsReview) {
+      result = result.filter((l) => l.needsReview === 1);
+    }
+    return result;
+  }, [lines, hideMemorized, showOnlyNeedsReview, progressMap]);
 
   if (contents === undefined) {
     return (
@@ -618,37 +642,28 @@ export default function App() {
           <div className="ml-auto flex gap-1.5">
             <button
               type="button"
-              onClick={() => setShortcutsOpen(true)}
-              className="text-[10px] rounded px-1.5 py-0.5 border text-zinc-300 bg-zinc-800 hover:bg-zinc-700 border-zinc-700 cursor-pointer"
-              title="단축키 목록 보기"
-            >
-              ⌨ 단축키
-            </button>
-            <button
-              type="button"
-              onClick={() => setProgressOpen(true)}
-              className="text-[10px] rounded px-1.5 py-0.5 border text-emerald-300 bg-emerald-950/60 border-emerald-800 hover:bg-emerald-900/60 cursor-pointer"
-              title="오늘 진도 + 스트릭 보기"
-            >
-              🔥 {streak?.currentStreak ?? 0}
-            </button>
-            <button
-              type="button"
               onClick={toggleSelectionMode}
-              className={`text-[10px] rounded px-1.5 py-0.5 border cursor-pointer ${
+              className={`text-[10px] rounded px-1.5 py-0.5 border cursor-pointer inline-flex items-center gap-1 ${
                 selectionMode
                   ? 'text-red-200 bg-red-900/60 border-red-700 hover:bg-red-800/60'
                   : 'text-zinc-400 bg-zinc-800 border-zinc-700 hover:bg-zinc-700'
               }`}
-              title={selectionMode ? '선택 모드 해제 (ESC)' : '라인 다중 선택 모드'}
+              title={selectionMode ? '선택 모드 해제 (ESC)' : '여러 라인을 한 번에 선택해서 삭제'}
             >
-              {selectionMode ? '✕ 선택 종료' : '📋 선택'}
+              {selectionMode ? (
+                <>✕ 선택 종료</>
+              ) : (
+                <>
+                  <TrashIcon className="w-3 h-3" />
+                  여러 줄 삭제
+                </>
+              )}
             </button>
             {memorizedCount > 0 && (
               <button
                 type="button"
                 onClick={() => setHideMemorized((v) => !v)}
-                className={`text-[10px] rounded px-1.5 py-0.5 border ${
+                className={`text-[10px] rounded px-1.5 py-0.5 border cursor-pointer ${
                   hideMemorized
                     ? 'text-emerald-300 bg-emerald-950/60 border-emerald-800 hover:bg-emerald-900/60'
                     : 'text-zinc-400 bg-zinc-800 border-zinc-700 hover:bg-zinc-700'
@@ -656,6 +671,25 @@ export default function App() {
                 title={hideMemorized ? `외운 ${memorizedCount}개 숨김 중 — 클릭해서 다시 표시` : `외운 라인 ${memorizedCount}개 — 클릭해서 숨기기`}
               >
                 {hideMemorized ? `🙈 외움 ${memorizedCount} 숨김` : `☑ 외움 ${memorizedCount}`}
+              </button>
+            )}
+            {(needsReviewCount > 0 || showOnlyNeedsReview) && (
+              <button
+                type="button"
+                onClick={() => setShowOnlyNeedsReview((v) => !v)}
+                className={`text-[10px] rounded px-1.5 py-0.5 border cursor-pointer ${
+                  showOnlyNeedsReview
+                    ? 'text-amber-200 bg-amber-900/60 border-amber-700 hover:bg-amber-800/60'
+                    : 'text-zinc-400 bg-zinc-800 border-zinc-700 hover:bg-zinc-700'
+                }`}
+                title={
+                  showOnlyNeedsReview
+                    ? `검토 필요 ${needsReviewCount}개만 표시 중 — 클릭해서 전체 보기`
+                    : `검토 필요 라인 ${needsReviewCount}개 — 클릭해서 이것만 보기`
+                }
+              >
+                ⚠ 검토 {needsReviewCount}
+                {showOnlyNeedsReview ? '만' : ''}
               </button>
             )}
             <button
@@ -672,15 +706,35 @@ export default function App() {
             </button>
           </div>
         </div>
-        <p className="text-xs text-zinc-400">
-          {totalLines.toLocaleString()} lines · 한국어 {koPercent}% ({koFilled})
-          {editedCount > 0 && (
-            <span className="text-amber-400/80 ml-2">· ✎편집 {editedCount}</span>
-          )}
-          {userAddedCount > 0 && (
-            <span className="text-purple-300 ml-2">· 👤추가 {userAddedCount}</span>
-          )}
-        </p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs text-zinc-400 min-w-0 truncate">
+            {totalLines.toLocaleString()} lines · 한국어 {koPercent}% ({koFilled})
+            {editedCount > 0 && (
+              <span className="text-amber-400/80 ml-2">· ✎편집 {editedCount}</span>
+            )}
+            {userAddedCount > 0 && (
+              <span className="text-purple-300 ml-2">· 👤추가 {userAddedCount}</span>
+            )}
+          </p>
+          <div className="flex gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => setShortcutsOpen(true)}
+              className="text-[10px] rounded px-1.5 py-0.5 border text-zinc-400 bg-zinc-900 hover:bg-zinc-800 border-zinc-800 hover:border-zinc-700 cursor-pointer"
+              title="단축키 목록 보기"
+            >
+              ⌨ 단축키
+            </button>
+            <button
+              type="button"
+              onClick={() => setProgressOpen(true)}
+              className="text-[10px] rounded px-1.5 py-0.5 border text-amber-300 bg-zinc-900 hover:bg-zinc-800 border-zinc-800 hover:border-zinc-700 cursor-pointer"
+              title="오늘 진도 + 스트릭 보기"
+            >
+              🔥 {streak?.currentStreak ?? 0}
+            </button>
+          </div>
+        </div>
       </header>
 
       {selectionMode && (

@@ -66,6 +66,13 @@ async function toggleMemorized(
   broadcastContentUpdate(contentId);
 }
 
+async function toggleNeedsReview(line: Line): Promise<void> {
+  if (line.id == null) return;
+  const next: 0 | 1 = line.needsReview === 1 ? 0 : 1;
+  await db.lines.update(line.id, { needsReview: next });
+  broadcastContentUpdate(line.contentId);
+}
+
 function LineRowImpl({
   line,
   index,
@@ -184,7 +191,14 @@ function ReadOnlyRow({
 }) {
   const isUserAdded = line.source === 'user';
   const wasEdited = !!line.editedAt;
+  const needsReview = line.needsReview === 1;
   const badge = progressBadge(progress);
+  // 좌측 border 우선순위: needsReview(amber) > 사용자추가(purple)
+  const leftBorder = needsReview
+    ? 'border-l-4 border-l-amber-500'
+    : isUserAdded
+      ? 'border-l-4 border-l-purple-500'
+      : '';
   return (
     <div
       className={`group px-4 py-3 border-b border-zinc-800 ${
@@ -193,7 +207,7 @@ function ReadOnlyRow({
           : isCurrent
             ? 'bg-blue-900/40 ring-2 ring-blue-400/70'
             : 'hover:bg-zinc-900/50'
-      } ${isUserAdded ? 'border-l-4 border-l-purple-500' : ''}`}
+      } ${leftBorder}`}
     >
       <div
         className="flex items-baseline gap-2 mb-1 text-xs font-mono cursor-pointer text-zinc-400 hover:text-blue-400"
@@ -275,11 +289,30 @@ function ReadOnlyRow({
             type="button"
             onClick={(e) => {
               e.stopPropagation();
+              void toggleNeedsReview(line);
+            }}
+            className={`text-sm leading-none px-1 cursor-pointer ${
+              needsReview
+                ? 'text-amber-400 hover:text-amber-300'
+                : 'text-zinc-600 hover:text-amber-400'
+            }`}
+            title={
+              needsReview
+                ? '검토 마크 해제 (자막 확인 완료)'
+                : '자막이 부정확함 — 검토 필요로 마크'
+            }
+          >
+            ⚠
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
               if (line.id != null) {
                 void toggleMemorized(line.id, line.contentId, progress);
               }
             }}
-            className={`text-base leading-none px-1 ${
+            className={`text-base leading-none px-1 cursor-pointer ${
               badge.star
                 ? 'text-emerald-400 hover:text-emerald-300'
                 : badge.candidate
@@ -315,7 +348,7 @@ function ReadOnlyRow({
                 const preview = (line.textEn || line.textKo || '(빈 라인)').slice(0, 60);
                 onDelete(line.id, preview, line.contentId);
               }}
-              className="opacity-0 group-hover:opacity-70 hover:!opacity-100 text-zinc-400 hover:text-red-400 cursor-pointer transition-opacity p-0.5"
+              className="opacity-0 group-hover:opacity-70 hover:opacity-100! text-zinc-400 hover:text-red-400 cursor-pointer transition-opacity p-0.5"
               title="이 라인 삭제"
               tabIndex={-1}
             >
@@ -361,6 +394,7 @@ function EditRow({
   const [note, setNote] = useState(line.note ?? '');
   const [startInput, setStartInput] = useState(formatTime(line.startMs));
   const [endInput, setEndInput] = useState(formatTime(line.endMs));
+  const [needsReview, setNeedsReview] = useState<0 | 1>(line.needsReview === 1 ? 1 : 0);
   const [timeError, setTimeError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const firstFieldRef = useRef<HTMLTextAreaElement>(null);
@@ -377,7 +411,8 @@ function EditRow({
     textKo !== line.textKo ||
     (note || '') !== (line.note ?? '') ||
     startInput !== formatTime(line.startMs) ||
-    endInput !== formatTime(line.endMs);
+    endInput !== formatTime(line.endMs) ||
+    needsReview !== (line.needsReview === 1 ? 1 : 0);
 
   async function save() {
     if (!line.id || !dirty) {
@@ -403,6 +438,7 @@ function EditRow({
         note: note.trim() || undefined,
         startMs: newStartMs,
         endMs: newEndMs,
+        needsReview,
         editedAt: Date.now(),
       });
       broadcastContentUpdate(line.contentId);
@@ -493,6 +529,18 @@ function EditRow({
         className="w-full bg-zinc-950 text-zinc-100 text-sm rounded px-2 py-1.5 border border-zinc-700 focus:border-blue-500 focus:outline-none"
         placeholder="단어 뜻, 발음 팁, 학습 메모..."
       />
+      <label className="flex items-center gap-2 mt-3 cursor-pointer text-xs text-zinc-300 select-none">
+        <input
+          type="checkbox"
+          checked={needsReview === 1}
+          onChange={(e) => setNeedsReview(e.target.checked ? 1 : 0)}
+          className="w-4 h-4 accent-amber-500 cursor-pointer"
+        />
+        <span>
+          <span className="text-amber-300">⚠ 자막이 부정확함</span>
+          <span className="text-zinc-500 ml-1">— 정확히 들리지 않을 때 검토용 마크</span>
+        </span>
+      </label>
       <div className="flex gap-2 mt-3 items-center flex-wrap">
         <button
           type="button"
