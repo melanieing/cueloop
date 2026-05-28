@@ -139,6 +139,8 @@ export default function App() {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
   const [progressOpen, setProgressOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Content | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   // 진도/스트릭 — popup이 더 이상 안 열리므로 사이드패널이 책임.
   // 모달 열렸을 때만 query (성능 + 무한 re-subscribe 방지). 닫혀있으면 fetch 안 함.
@@ -287,6 +289,44 @@ export default function App() {
     }
   }, []);
 
+  // 콘텐츠 + 연관 데이터(lines/lineProgress/customLoops/sessions/recordings) cascade 삭제.
+  // dailyGoals/streak은 콘텐츠 무관(날짜 기준)이라 보존.
+  async function confirmDeleteContent() {
+    const target = deleteTarget;
+    if (target?.id == null) return;
+    const contentId = target.id;
+    setDeleting(true);
+    try {
+      await db.transaction(
+        'rw',
+        [db.contents, db.lines, db.lineProgress, db.customLoops, db.sessions, db.recordings],
+        async () => {
+          const lns = await db.lines.where('contentId').equals(contentId).toArray();
+          const lineIds = lns
+            .map((l) => l.id)
+            .filter((x): x is number => x != null);
+          if (lineIds.length > 0) {
+            await db.lineProgress.bulkDelete(lineIds);
+            await db.recordings.where('lineId').anyOf(lineIds).delete();
+          }
+          await db.lines.where('contentId').equals(contentId).delete();
+          await db.customLoops.where('contentId').equals(contentId).delete();
+          await db.sessions.where('contentId').equals(contentId).delete();
+          await db.contents.delete(contentId);
+        },
+      );
+      // 삭제된 게 현재 manual 선택이었으면 자동 연동으로 복귀
+      if (manualSelectedId === contentId) setManualSelectedId(null);
+      broadcastContentUpdate(contentId);
+    } catch (err) {
+      setJumpError(`삭제 실패: ${String(err)}`);
+      setTimeout(() => setJumpError(null), 4000);
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
+    }
+  }
+
   const memorizedCount = useMemo(() => {
     if (!lines) return 0;
     let n = 0;
@@ -397,6 +437,17 @@ export default function App() {
             title={hasCustomTitle ? '제목 편집' : '아직 ID만 — 클릭해서 영화 제목 입력'}
           >
             ✎ 제목
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (currentContent) setDeleteTarget(currentContent);
+            }}
+            disabled={effectiveContentId == null}
+            className="px-2 py-1.5 text-xs bg-zinc-800 hover:bg-red-900 text-zinc-400 hover:text-red-100 border border-zinc-700 hover:border-red-800 rounded disabled:opacity-50 whitespace-nowrap cursor-pointer"
+            title="이 콘텐츠 + 모든 학습 데이터 삭제"
+          >
+            🗑
           </button>
           <button
             type="button"
@@ -515,6 +566,55 @@ export default function App() {
           defaultEndMs={insertDefaultEnd}
           onClose={() => setInsertOpen(false)}
         />
+      )}
+
+      {deleteTarget && (
+        <div
+          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
+          onClick={() => !deleting && setDeleteTarget(null)}
+        >
+          <div
+            className="bg-zinc-900 border border-zinc-700 rounded-lg max-w-sm w-full p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-base font-semibold mb-3">🗑 콘텐츠 삭제</h3>
+            <p className="text-sm text-zinc-300 mb-2">
+              <span className="font-mono text-amber-300 break-all">
+                {displayName(deleteTarget)}
+              </span>
+            </p>
+            <p className="text-sm text-zinc-300 mb-4 leading-relaxed">
+              이 콘텐츠의 <strong className="text-red-400">자막 · 진도 · 외움 ·
+              CustomLoop · 세션</strong> 데이터가 모두 삭제됩니다.
+              {deleteTarget.id === effectiveContentId && totalLines > 0 && (
+                <span className="block text-xs text-zinc-500 mt-1">
+                  (현재 라인 {totalLines.toLocaleString()}개 + 진도 포함)
+                </span>
+              )}
+            </p>
+            <p className="text-xs text-zinc-500 mb-5">
+              ⚠ 이 작업은 되돌릴 수 없습니다. 일일 목표·스트릭은 영향받지 않습니다.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleting}
+                className="px-4 py-2 text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded cursor-pointer disabled:opacity-50"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmDeleteContent()}
+                disabled={deleting}
+                className="px-4 py-2 text-sm bg-red-700 hover:bg-red-600 text-white rounded cursor-pointer disabled:opacity-50"
+              >
+                {deleting ? '삭제 중...' : '삭제'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {progressOpen && todayGoal && streak && (

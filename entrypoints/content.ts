@@ -63,6 +63,19 @@ export default defineContentScript({
     window.addEventListener('cueloop/timedtext', (event) => {
       const detail = (event as CustomEvent<TimedtextDetail>).detail;
       if (!detail?.movieId) return;
+
+      // 현재 /watch/{id} 페이지이고 그 id가 캡처된 movieId와 일치할 때만 ingest.
+      // 브라우즈 페이지 썸네일 hover 미리보기(또는 watch 중 다른 영화 hover)는
+      // URL이 다르므로 무시 → select box에 쓰레기 콘텐츠 안 들어감.
+      // seenMovies에 add하지 않아서, 실제 watch 진입 시 재캡처되면 정상 ingest.
+      const currentMovieId = currentMovieIdFromUrl();
+      if (currentMovieId !== detail.movieId) {
+        console.log(
+          `[Cueloop] ignoring timedtext for ${detail.movieId} — not the current watch page (current=${currentMovieId ?? 'none'})`,
+        );
+        return;
+      }
+
       if (seenMovies.has(detail.movieId)) return;
       seenMovies.add(detail.movieId);
 

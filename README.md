@@ -99,6 +99,17 @@ pnpm tsc --noEmit # 타입 체크
 - **저장소**: Dexie.js 4 (IndexedDB 래퍼) + dexie-react-hooks
 - **메시지**: Chrome MV3 + 타입 안전한 discriminated union
 
+### FAQ
+
+**Q. 콘텐츠를 어떻게 구분하나요? 같은 영화인데 진도가 0이 됐어요.**
+Cueloop은 Netflix 영상 고유 번호(`netflix.com/watch/70283145`의 숫자)로 콘텐츠를 구분합니다. 영화 1편·에피소드 1화마다 고유 번호가 있고, 시청목록에서 빼거나 복습으로 다시 봐도 번호는 안 바뀌어서 진도가 이어집니다. 단 Netflix 재계약·다른 국가 카탈로그·다른 버전(감독판 등)이면 번호가 달라질 수 있습니다 (드문 경우).
+
+**Q. 제목이 "Netflix 12345"처럼 보여요.**
+Netflix가 재생 페이지에선 제목을 제공하지 않습니다. 사이드패널 상단 `✎ 제목` 버튼으로 직접 입력하세요.
+
+**Q. select 박스에 쓰레기 콘텐츠가 쌓여요.**
+실제 `/watch/` 페이지에 진입한 콘텐츠만 추가됩니다 (브라우즈 hover 미리보기는 무시). 이미 쌓인 항목은 select 박스 옆 🗑 버튼으로 삭제하세요.
+
 ---
 
 ## 🇺🇸 English
@@ -192,6 +203,17 @@ Build output lands in `.output/chrome-mv3/`. In Chrome, go to `chrome://extensio
 - **Styling**: Tailwind CSS v4
 - **Storage**: Dexie.js 4 (IndexedDB wrapper) + dexie-react-hooks
 - **Messaging**: Chrome MV3 + typed discriminated unions
+
+### FAQ
+
+**Q. How are titles identified? My progress reset for the same movie.**
+Cueloop identifies content by Netflix's video ID (the number in `netflix.com/watch/70283145`). Each movie / episode has a unique number, and it doesn't change when you remove it from My List or rewatch — so progress carries over. It *can* differ if Netflix re-licenses the content, or across regional catalogs / different versions (director's cut, etc.) — rare cases.
+
+**Q. The title shows as "Netflix 12345".**
+Netflix doesn't expose the title on the watch page. Use the `✎ 제목` (title) button at the top of the side panel to enter it once.
+
+**Q. Junk content keeps piling up in the dropdown.**
+Only content you actually open at a `/watch/` page is added (browse-page hover previews are ignored). Delete existing junk with the 🗑 button next to the dropdown.
 
 ---
 

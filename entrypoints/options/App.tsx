@@ -395,6 +395,75 @@ export default function App() {
         </p>
       </section>
 
+      <section className="mb-10">
+        <h2 className="text-lg font-semibold mb-3">❓ 자주 묻는 질문</h2>
+        <div className="space-y-3">
+          <details className="bg-zinc-900/60 border border-zinc-800 rounded p-3">
+            <summary className="text-sm font-medium text-zinc-200 cursor-pointer">
+              콘텐츠를 어떻게 구분하나요? 같은 영화인데 진도가 0이 됐어요.
+            </summary>
+            <div className="text-xs text-zinc-400 mt-2 leading-relaxed space-y-2">
+              <p>
+                Cueloop은 Netflix 영상의 고유 번호(<span className="font-mono text-zinc-300">netflix.com/watch/<strong>70283145</strong></span>{' '}
+                같은 숫자)로 콘텐츠를 구분합니다. 영화 1편 또는 시리즈의 에피소드
+                1화마다 고유한 번호가 있습니다.
+              </p>
+              <p>
+                <strong className="text-zinc-200">시청목록에서 빼거나 복습하려고
+                다시 봐도 이 번호는 바뀌지 않아서</strong> 진도·외움·CustomLoop이
+                그대로 이어집니다.
+              </p>
+              <p>
+                단, Netflix가 콘텐츠를 내렸다가 재계약으로 다시 올리거나, 다른
+                국가 카탈로그·다른 버전(감독판 등)이면 번호가 달라질 수 있고,
+                그땐 별개 콘텐츠로 보입니다 (드문 경우).
+              </p>
+            </div>
+          </details>
+
+          <details className="bg-zinc-900/60 border border-zinc-800 rounded p-3">
+            <summary className="text-sm font-medium text-zinc-200 cursor-pointer">
+              select 박스에 쓰레기 콘텐츠가 쌓여요.
+            </summary>
+            <div className="text-xs text-zinc-400 mt-2 leading-relaxed space-y-2">
+              <p>
+                브라우즈 페이지에서 썸네일에 마우스만 올려도 미리보기가 재생되며
+                자막이 잡히던 문제는 수정됐습니다. 이제{' '}
+                <strong className="text-zinc-200">실제로 재생 페이지
+                (/watch/…)에 들어간 콘텐츠만</strong> 추가됩니다.
+              </p>
+              <p>
+                이미 쌓인 항목은 사이드패널 상단 select 박스 옆{' '}
+                <span className="px-1 py-0.5 bg-zinc-800 border border-zinc-700 rounded">🗑</span>{' '}
+                버튼으로 콘텐츠 + 학습 데이터를 함께 삭제할 수 있습니다.
+              </p>
+            </div>
+          </details>
+
+          <details className="bg-zinc-900/60 border border-zinc-800 rounded p-3">
+            <summary className="text-sm font-medium text-zinc-200 cursor-pointer">
+              제목이 "Netflix 12345"처럼 보여요.
+            </summary>
+            <div className="text-xs text-zinc-400 mt-2 leading-relaxed">
+              Netflix가 재생 페이지에선 제목 정보를 제공하지 않습니다. 사이드패널
+              상단 <span className="px-1 py-0.5 bg-amber-950/40 border border-amber-800 rounded text-amber-300">✎ 제목</span>{' '}
+              버튼으로 한 번 직접 입력하면 이후 그 제목으로 표시됩니다.
+            </div>
+          </details>
+
+          <details className="bg-zinc-900/60 border border-zinc-800 rounded p-3">
+            <summary className="text-sm font-medium text-zinc-200 cursor-pointer">
+              단축키가 안 들어요.
+            </summary>
+            <div className="text-xs text-zinc-400 mt-2 leading-relaxed">
+              영상 화면 또는 사이드패널에 포커스가 있어야 합니다 (라인 텍스트
+              편집 중일 땐 일반 입력이 우선). 다른 앱 창이나 주소창에 포커스가
+              있으면 동작하지 않습니다.
+            </div>
+          </details>
+        </div>
+      </section>
+
       {pendingImportFile && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-zinc-900 border border-zinc-700 rounded-lg max-w-md w-full p-5">
