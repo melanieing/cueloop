@@ -124,7 +124,14 @@ function LineRowImpl({
       />
     );
   }
-  return <EditRow line={line} index={index} onDone={onEditEnd} />;
+  return (
+    <EditRow
+      line={line}
+      index={index}
+      onDone={onEditEnd}
+      onDelete={onDelete}
+    />
+  );
 }
 
 export const LineRow = memo(LineRowImpl, (prev, next) => {
@@ -342,10 +349,12 @@ function EditRow({
   line,
   index,
   onDone,
+  onDelete,
 }: {
   line: Line;
   index: number;
   onDone: () => void;
+  onDelete: (lineId: number, preview: string, contentId: number) => void;
 }) {
   const [textEn, setTextEn] = useState(line.textEn);
   const [textKo, setTextKo] = useState(line.textKo);
@@ -403,20 +412,12 @@ function EditRow({
     }
   }
 
-  async function remove() {
-    if (!line.id) return;
-    const preview = (line.textEn || line.textKo || '(빈 라인)').slice(0, 40);
-    if (!confirm(`#${index + 1} 라인을 삭제할까요?\n\n"${preview}..."\n\n이 작업은 되돌릴 수 없습니다.`)) {
-      return;
-    }
-    setBusy(true);
-    try {
-      await db.lines.delete(line.id);
-      broadcastContentUpdate(line.contentId);
-    } finally {
-      setBusy(false);
-      onDone();
-    }
+  function requestDelete() {
+    if (line.id == null) return;
+    const preview = (line.textEn || line.textKo || '(빈 라인)').slice(0, 60);
+    // 편집창 닫고 사이드패널의 in-page confirm 모달로 위임 (ReadOnlyRow hover trash와 동일 UX)
+    onDone();
+    onDelete(line.id, preview, line.contentId);
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -511,12 +512,13 @@ function EditRow({
         </button>
         <button
           type="button"
-          onClick={() => void remove()}
+          onClick={requestDelete}
           disabled={busy}
-          className="px-3 py-1 text-xs bg-red-900 hover:bg-red-800 text-red-100 rounded disabled:opacity-50 ml-auto"
+          className="px-3 py-1 text-xs bg-red-900 hover:bg-red-800 text-red-100 rounded disabled:opacity-50 ml-auto cursor-pointer inline-flex items-center gap-1"
           title="라인 삭제"
         >
-          🗑 삭제
+          <TrashIcon className="w-3.5 h-3.5" />
+          삭제
         </button>
       </div>
       {line.editedAt && (

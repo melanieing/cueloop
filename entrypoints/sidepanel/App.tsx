@@ -139,6 +139,7 @@ export default function App() {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
   const [progressOpen, setProgressOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Content | null>(null);
   const [deleting, setDeleting] = useState(false);
   // 라인 단일 삭제 (hover 🗑) confirm 모달
@@ -198,7 +199,7 @@ export default function App() {
   // 단, input/textarea/select에 focus 있거나 편집 모드일 땐 그 입력을 우선.
   useEffect(() => {
     const HANDLED_KEYS = new Set([
-      'h', 'l', 'a', 'b', 's', 'r',
+      'h', 'e', 'l', 'a', 'b', 's', 'r',
       'arrowleft', 'arrowright', 'arrowup', 'arrowdown',
     ]);
     function onKeyDown(e: KeyboardEvent) {
@@ -617,6 +618,14 @@ export default function App() {
           <div className="ml-auto flex gap-1.5">
             <button
               type="button"
+              onClick={() => setShortcutsOpen(true)}
+              className="text-[10px] rounded px-1.5 py-0.5 border text-zinc-300 bg-zinc-800 hover:bg-zinc-700 border-zinc-700 cursor-pointer"
+              title="단축키 목록 보기"
+            >
+              ⌨ 단축키
+            </button>
+            <button
+              type="button"
               onClick={() => setProgressOpen(true)}
               className="text-[10px] rounded px-1.5 py-0.5 border text-emerald-300 bg-emerald-950/60 border-emerald-800 hover:bg-emerald-900/60 cursor-pointer"
               title="오늘 진도 + 스트릭 보기"
@@ -715,6 +724,58 @@ export default function App() {
           defaultEndMs={insertDefaultEnd}
           onClose={() => setInsertOpen(false)}
         />
+      )}
+
+      {shortcutsOpen && (
+        <div
+          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
+          onClick={() => setShortcutsOpen(false)}
+        >
+          <div
+            className="bg-zinc-900 border border-zinc-700 rounded-lg max-w-sm w-full p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-base font-bold">⌨ 단축키</h3>
+              <button
+                type="button"
+                onClick={() => setShortcutsOpen(false)}
+                className="text-zinc-500 hover:text-zinc-200 text-lg leading-none cursor-pointer"
+                title="닫기"
+              >
+                ×
+              </button>
+            </div>
+            <p className="text-[11px] text-zinc-500 mb-4 leading-relaxed">
+              영상 화면 또는 사이드패널에 포커스가 있을 때 동작 (라인 편집 중일 땐 일반 입력 우선).
+            </p>
+            <table className="text-xs w-full">
+              <tbody className="text-zinc-300">
+                {[
+                  ['H', '한국어 자막 ON/OFF'],
+                  ['E', 'English 자막 ON/OFF (둘 다 OFF면 shadowing)'],
+                  ['L', '현재 라인 반복 시작/정지'],
+                  ['A', 'CustomLoop 시작점 마킹'],
+                  ['B', 'CustomLoop 끝점 (자동 저장 + 반복)'],
+                  ['S', '진행 중 CustomLoop에 라벨 저장'],
+                  ['↑ / ↓', '이전 / 다음 라인'],
+                  ['← / →', '2초 뒤로 / 앞으로'],
+                  ['R', '현재 라인 처음부터 다시'],
+                  ['ESC', '선택 모드 해제 / 편집 취소'],
+                ].map(([key, desc]) => (
+                  <tr key={key} className="border-b border-zinc-800/60 last:border-0">
+                    <td className="py-1.5 pr-3 w-28">
+                      <kbd className="px-2 py-0.5 bg-zinc-800 border border-zinc-700 rounded font-mono text-xs">
+                        {key}
+                      </kbd>
+                    </td>
+                    <td className="py-1.5 text-zinc-400">{desc}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
 
       {deleteLineTarget && (

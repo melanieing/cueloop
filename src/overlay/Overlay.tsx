@@ -146,6 +146,7 @@ export function Overlay({ video }: OverlayProps) {
   const [lines, setLines] = useState<Line[]>([]);
   const [currentLine, setCurrentLine] = useState<Line | null>(null);
   const [showKorean, setShowKorean] = useState(true);
+  const [showEnglish, setShowEnglish] = useState(true);
   const [toastVisible, setToastVisible] = useState(false);
   const [toastText, setToastText] = useState('');
   const [repeating, setRepeating] = useState<Repeating | null>(null);
@@ -559,6 +560,14 @@ export function Overlay({ video }: OverlayProps) {
           showToast(`한국어 자막: ${next ? 'ON' : 'OFF'} (H)`);
           return next;
         });
+      } else if (key === 'e') {
+        e.preventDefault();
+        e.stopPropagation();
+        setShowEnglish((prev) => {
+          const next = !prev;
+          showToast(`English 자막: ${next ? 'ON' : 'OFF'} (E)`);
+          return next;
+        });
       } else if (key === 'l') {
         e.preventDefault();
         e.stopPropagation();
@@ -643,7 +652,7 @@ export function Overlay({ video }: OverlayProps) {
           </div>
         ) : visible ? (
           <>
-            {currentLine.textEn.trim() && (
+            {showEnglish && currentLine.textEn.trim() && (
               <div
                 style={{
                   color: '#ffffff',
@@ -737,24 +746,28 @@ export function Overlay({ video }: OverlayProps) {
         </div>
       )}
 
-      {!showKorean && (
+      {(!showKorean || !showEnglish) && (
         <div
           style={{
             position: 'fixed',
-            top: '12px',
-            right: '12px',
+            top: '16px',
+            right: '16px',
             zIndex: 2147483646,
             pointerEvents: 'none',
-            background: 'rgba(0,0,0,0.6)',
-            color: 'rgba(253, 230, 138, 0.7)',
-            padding: '3px 8px',
-            borderRadius: '4px',
+            background: 'rgba(0,0,0,0.7)',
+            color: 'rgba(253, 230, 138, 0.9)',
+            padding: '6px 14px',
+            borderRadius: '6px',
             fontFamily: 'system-ui, sans-serif',
-            fontSize: '0.7rem',
+            fontSize: '1.5rem',
             fontWeight: 600,
+            display: 'flex',
+            gap: '14px',
+            textShadow: '0 0 4px rgba(0,0,0,0.6)',
           }}
         >
-          한국어 OFF (H)
+          {!showEnglish && <span>English OFF (E)</span>}
+          {!showKorean && <span>한국어 OFF (H)</span>}
         </div>
       )}
 
@@ -762,19 +775,20 @@ export function Overlay({ video }: OverlayProps) {
         <div
           style={{
             position: 'fixed',
-            top: '20px',
+            top: '24px',
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 2147483647,
             pointerEvents: 'none',
             background: 'rgba(0,0,0,0.85)',
             color: '#fde68a',
-            padding: '8px 18px',
-            borderRadius: '6px',
+            padding: '14px 28px',
+            borderRadius: '8px',
             fontFamily: 'system-ui, sans-serif',
-            fontSize: '1rem',
+            fontSize: '2rem',
             fontWeight: 600,
             boxShadow: '0 2px 12px rgba(0,0,0,0.5)',
+            textShadow: '0 0 6px rgba(0,0,0,0.6)',
           }}
         >
           {toastText}

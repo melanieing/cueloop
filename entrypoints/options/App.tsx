@@ -268,6 +268,7 @@ export default function App() {
             <tbody className="text-zinc-300">
               {[
                 ['H', '한국어 자막 표시/숨김 토글'],
+                ['E', 'English 자막 표시/숨김 토글 (둘 다 끄면 무자막 shadowing)'],
                 ['L', '현재 라인 반복 시작/정지'],
                 ['A', 'CustomLoop 시작점 마킹'],
                 ['B', 'CustomLoop 끝점 마킹 (자동 저장 + 반복 시작)'],
