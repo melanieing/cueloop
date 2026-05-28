@@ -248,40 +248,50 @@ export function Overlay({ video }: OverlayProps) {
     };
   }, [video]);
 
-  // rAF loop
+  // rAF + video.timeupdate 동시 사용 — 다른 창에 포커스 옮겨도(background window)
+  // Chrome이 rAF를 1fps로 throttle하지만 video.timeupdate는 ~250ms 간격으로 정상 fire되어
+  // 반복 유지됨. cancel 임계치도 800ms → 2500ms로 완화해서 throttle 환경에서도
+  // 잘못된 cancel 안 발생.
   useEffect(() => {
+    function checkRepeat(timeMs: number) {
+      const rep = repeatingRef.current;
+      if (rep == null) return;
+      const now = performance.now();
+      const seekCooldownActive = now - lastSeekAtRef.current < 250;
+      const startMs = rep.kind === 'line' ? rep.line.startMs : rep.startMs;
+      const endMs = rep.kind === 'line' ? rep.line.endMs : rep.endMs;
+      if (
+        !seekCooldownActive &&
+        (timeMs < startMs - 200 || timeMs > endMs + 2500)
+      ) {
+        repeatingRef.current = null;
+        repeatCountRef.current = 0;
+        setRepeating(null);
+        setRepeatCount(0);
+      } else if (timeMs >= endMs && !seekCooldownActive) {
+        repeatCountRef.current += 1;
+        setRepeatCount(repeatCountRef.current);
+        if (rep.kind === 'line' && rep.line.id != null) {
+          incrementListen(rep.line.id);
+        } else if (rep.kind === 'custom') {
+          incrementCustomLoopListen(rep.loopId);
+        }
+        netflixSeek(startMs);
+        lastSeekAtRef.current = now;
+      }
+    }
+
+    function onTimeUpdate() {
+      checkRepeat(Math.floor(video.currentTime * 1000));
+    }
+    video.addEventListener('timeupdate', onTimeUpdate);
+
     let raf = 0;
     function tick() {
       const sorted = linesRef.current;
       const timeMs = Math.floor(video.currentTime * 1000);
 
-      const rep = repeatingRef.current;
-      if (rep != null) {
-        const now = performance.now();
-        const seekCooldownActive = now - lastSeekAtRef.current < 250;
-        const startMs = rep.kind === 'line' ? rep.line.startMs : rep.startMs;
-        // 라인 반복은 line.endMs (사용자가 편집한 값) 직접 사용. 자막 표시는 별도.
-        const endMs = rep.kind === 'line' ? rep.line.endMs : rep.endMs;
-        if (
-          !seekCooldownActive &&
-          (timeMs < startMs - 200 || timeMs > endMs + 800)
-        ) {
-          repeatingRef.current = null;
-          repeatCountRef.current = 0;
-          setRepeating(null);
-          setRepeatCount(0);
-        } else if (timeMs >= endMs && !seekCooldownActive) {
-          repeatCountRef.current += 1;
-          setRepeatCount(repeatCountRef.current);
-          if (rep.kind === 'line' && rep.line.id != null) {
-            incrementListen(rep.line.id);
-          } else if (rep.kind === 'custom') {
-            incrementCustomLoopListen(rep.loopId);
-          }
-          netflixSeek(startMs);
-          lastSeekAtRef.current = now;
-        }
-      }
+      checkRepeat(timeMs);
 
       if (sorted.length > 0) {
         const line = findCurrentLine(sorted, timeMs);
@@ -303,7 +313,10 @@ export function Overlay({ video }: OverlayProps) {
       raf = requestAnimationFrame(tick);
     }
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      video.removeEventListener('timeupdate', onTimeUpdate);
+    };
   }, [video]);
 
   // repeating 상태 변경 시 사이드패널에 알림 (라인 반복일 때만 lineId, 그 외는 null)

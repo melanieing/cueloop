@@ -8,7 +8,7 @@ import { db, type Content } from '@/src/db';
 import type { CueloopMessage } from '@/src/messages';
 import { broadcastContentUpdate } from '@/src/lib/broadcastUpdate';
 import { todayKey, getOrCreateTodayGoal } from '@/src/lib/dailyGoal';
-import { LineRow } from './LineRow';
+import { LineRow, TrashIcon } from './LineRow';
 import { InsertLineModal } from './InsertLineModal';
 import { CustomLoopList } from './CustomLoopList';
 
@@ -141,6 +141,19 @@ export default function App() {
   const [progressOpen, setProgressOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Content | null>(null);
   const [deleting, setDeleting] = useState(false);
+  // 라인 단일 삭제 (hover 🗑) confirm 모달
+  const [deleteLineTarget, setDeleteLineTarget] = useState<{
+    id: number;
+    preview: string;
+    contentId: number;
+  } | null>(null);
+  // 다중 선택 모드
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedLineIds, setSelectedLineIds] = useState<Set<number>>(
+    () => new Set(),
+  );
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
 
   // 진도/스트릭 — popup이 더 이상 안 열리므로 사이드패널이 책임.
   // 모달 열렸을 때만 query (성능 + 무한 re-subscribe 방지). 닫혀있으면 fetch 안 함.
@@ -288,6 +301,98 @@ export default function App() {
       setTimeout(() => setJumpError(null), 4000);
     }
   }, []);
+
+  // 단일 라인 삭제 요청 (hover 🗑 클릭)
+  const requestDeleteLine = useCallback(
+    (lineId: number, preview: string, contentId: number) => {
+      setDeleteLineTarget({ id: lineId, preview, contentId });
+    },
+    [],
+  );
+
+  async function confirmDeleteLine() {
+    if (!deleteLineTarget) return;
+    const { id, contentId } = deleteLineTarget;
+    try {
+      await db.lines.delete(id);
+      await db.lineProgress.delete(id);
+      broadcastContentUpdate(contentId);
+    } catch (err) {
+      setJumpError(`라인 삭제 실패: ${String(err)}`);
+      setTimeout(() => setJumpError(null), 4000);
+    } finally {
+      setDeleteLineTarget(null);
+    }
+  }
+
+  // 선택 모드 토글
+  function toggleSelectionMode() {
+    setSelectionMode((prev) => {
+      if (prev) setSelectedLineIds(new Set());
+      return !prev;
+    });
+  }
+
+  const handleSelectToggle = useCallback((lineId: number) => {
+    setSelectedLineIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(lineId)) next.delete(lineId);
+      else next.add(lineId);
+      return next;
+    });
+  }, []);
+
+  function selectAllVisible() {
+    if (!lines) return;
+    const ids = new Set<number>();
+    const src = displayLines ?? lines;
+    for (const l of src) {
+      if (l.id != null) ids.add(l.id);
+    }
+    setSelectedLineIds(ids);
+  }
+
+  function deselectAll() {
+    setSelectedLineIds(new Set());
+  }
+
+  async function bulkDeleteSelected() {
+    if (selectedLineIds.size === 0 || effectiveContentId == null) return;
+    setBulkDeleting(true);
+    try {
+      const ids = [...selectedLineIds];
+      await db.transaction('rw', [db.lines, db.lineProgress, db.recordings], async () => {
+        await db.lines.bulkDelete(ids);
+        await db.lineProgress.bulkDelete(ids);
+        await db.recordings.where('lineId').anyOf(ids).delete();
+      });
+      broadcastContentUpdate(effectiveContentId);
+      setSelectedLineIds(new Set());
+      setConfirmBulkDelete(false);
+      // 선택 모드는 유지 — 사용자가 더 지울 수도 있고 ESC로 종료 가능
+    } catch (err) {
+      setJumpError(`일괄 삭제 실패: ${String(err)}`);
+      setTimeout(() => setJumpError(null), 4000);
+    } finally {
+      setBulkDeleting(false);
+    }
+  }
+
+  // 선택 모드 중 ESC로 해제
+  useEffect(() => {
+    if (!selectionMode) return;
+    function onEsc(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        // 일반 ESC가 이미 다른 곳에서 잡힐 수 있으므로 capture로 우선 처리
+        e.preventDefault();
+        e.stopPropagation();
+        setSelectionMode(false);
+        setSelectedLineIds(new Set());
+      }
+    }
+    document.addEventListener('keydown', onEsc, true);
+    return () => document.removeEventListener('keydown', onEsc, true);
+  }, [selectionMode]);
 
   // 콘텐츠 + 연관 데이터(lines/lineProgress/customLoops/sessions/recordings) cascade 삭제.
   // dailyGoals/streak은 콘텐츠 무관(날짜 기준)이라 보존.
@@ -444,10 +549,10 @@ export default function App() {
               if (currentContent) setDeleteTarget(currentContent);
             }}
             disabled={effectiveContentId == null}
-            className="px-2 py-1.5 text-xs bg-zinc-800 hover:bg-red-900 text-zinc-400 hover:text-red-100 border border-zinc-700 hover:border-red-800 rounded disabled:opacity-50 whitespace-nowrap cursor-pointer"
+            className="px-2 py-1.5 text-xs bg-zinc-800 hover:bg-red-900 text-zinc-300 hover:text-red-100 border border-zinc-700 hover:border-red-800 rounded disabled:opacity-50 whitespace-nowrap cursor-pointer inline-flex items-center"
             title="이 콘텐츠 + 모든 학습 데이터 삭제"
           >
-            🗑
+            <TrashIcon className="w-4 h-4" />
           </button>
           <button
             type="button"
@@ -518,6 +623,18 @@ export default function App() {
             >
               🔥 {streak?.currentStreak ?? 0}
             </button>
+            <button
+              type="button"
+              onClick={toggleSelectionMode}
+              className={`text-[10px] rounded px-1.5 py-0.5 border cursor-pointer ${
+                selectionMode
+                  ? 'text-red-200 bg-red-900/60 border-red-700 hover:bg-red-800/60'
+                  : 'text-zinc-400 bg-zinc-800 border-zinc-700 hover:bg-zinc-700'
+              }`}
+              title={selectionMode ? '선택 모드 해제 (ESC)' : '라인 다중 선택 모드'}
+            >
+              {selectionMode ? '✕ 선택 종료' : '📋 선택'}
+            </button>
             {memorizedCount > 0 && (
               <button
                 type="button"
@@ -557,6 +674,38 @@ export default function App() {
         </p>
       </header>
 
+      {selectionMode && (
+        <div className="px-4 py-2 border-b border-red-900/50 bg-red-950/30 text-xs flex items-center gap-2 flex-wrap">
+          <span className="text-red-200 font-semibold">
+            ✓ {selectedLineIds.size}개 선택됨
+          </span>
+          <button
+            type="button"
+            onClick={selectAllVisible}
+            className="px-2 py-0.5 text-zinc-300 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded cursor-pointer"
+          >
+            전체
+          </button>
+          <button
+            type="button"
+            onClick={deselectAll}
+            disabled={selectedLineIds.size === 0}
+            className="px-2 py-0.5 text-zinc-300 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded cursor-pointer disabled:opacity-50"
+          >
+            해제
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirmBulkDelete(true)}
+            disabled={selectedLineIds.size === 0}
+            className="ml-auto px-3 py-0.5 text-white bg-red-700 hover:bg-red-600 rounded cursor-pointer disabled:opacity-50 inline-flex items-center gap-1"
+          >
+            <TrashIcon className="w-3.5 h-3.5" />
+            선택 삭제
+          </button>
+        </div>
+      )}
+
       <CustomLoopList contentId={effectiveContentId ?? null} />
 
       {insertOpen && effectiveContentId != null && (
@@ -566,6 +715,78 @@ export default function App() {
           defaultEndMs={insertDefaultEnd}
           onClose={() => setInsertOpen(false)}
         />
+      )}
+
+      {deleteLineTarget && (
+        <div
+          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
+          onClick={() => setDeleteLineTarget(null)}
+        >
+          <div
+            className="bg-zinc-900 border border-zinc-700 rounded-lg max-w-sm w-full p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-base font-semibold mb-3">🗑 라인 삭제</h3>
+            <p className="text-sm text-zinc-300 mb-4 leading-relaxed">
+              "<span className="text-amber-300">{deleteLineTarget.preview}</span>"
+            </p>
+            <p className="text-xs text-zinc-500 mb-5">
+              이 라인과 해당 진도 데이터가 삭제됩니다. 되돌릴 수 없습니다.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => setDeleteLineTarget(null)}
+                className="px-4 py-2 text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded cursor-pointer"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmDeleteLine()}
+                className="px-4 py-2 text-sm bg-red-700 hover:bg-red-600 text-white rounded cursor-pointer"
+              >
+                삭제
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmBulkDelete && (
+        <div
+          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
+          onClick={() => !bulkDeleting && setConfirmBulkDelete(false)}
+        >
+          <div
+            className="bg-zinc-900 border border-zinc-700 rounded-lg max-w-sm w-full p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-base font-semibold mb-3">🗑 일괄 삭제</h3>
+            <p className="text-sm text-zinc-300 mb-4 leading-relaxed">
+              선택한 <strong className="text-red-400">{selectedLineIds.size}개</strong>의 라인과 진도 데이터가 삭제됩니다.
+            </p>
+            <p className="text-xs text-zinc-500 mb-5">⚠ 되돌릴 수 없습니다.</p>
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => setConfirmBulkDelete(false)}
+                disabled={bulkDeleting}
+                className="px-4 py-2 text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded cursor-pointer disabled:opacity-50"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={() => void bulkDeleteSelected()}
+                disabled={bulkDeleting}
+                className="px-4 py-2 text-sm bg-red-700 hover:bg-red-600 text-white rounded cursor-pointer disabled:opacity-50"
+              >
+                {bulkDeleting ? '삭제 중...' : `삭제 (${selectedLineIds.size})`}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {deleteTarget && (
@@ -730,12 +951,16 @@ export default function App() {
                 onJump={handleJump}
                 onLoop={handleLoop}
                 onStopRepeat={handleStopRepeat}
+                onDelete={requestDeleteLine}
                 progress={line.id != null ? progressMap.get(line.id) : undefined}
                 isCurrent={line.id === currentLineId}
                 isRepeating={line.id === repeatingLineId}
                 isEditing={editingLineId === line.id}
                 onEditStart={handleEditStart}
                 onEditEnd={handleEditEnd}
+                selectionMode={selectionMode}
+                isSelected={line.id != null && selectedLineIds.has(line.id)}
+                onSelectToggle={handleSelectToggle}
               />
             </div>
           ))

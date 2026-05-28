@@ -3,6 +3,20 @@ import { db, type Line, type LineProgress } from '@/src/db';
 import { broadcastContentUpdate } from '@/src/lib/broadcastUpdate';
 import { parseTimeToMs } from './InsertLineModal';
 
+// 환경 독립적인 휴지통 아이콘 (이모지는 일부 환경에서 grayscale로 렌더링됨)
+export function TrashIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M9 3v1H4v2h16V4h-5V3H9zm-3 5v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8H6zm3 2h2v9H9v-9zm4 0h2v9h-2v-9z" />
+    </svg>
+  );
+}
+
 export function formatTime(ms: number): string {
   const totalSec = Math.floor(ms / 1000);
   const h = Math.floor(totalSec / 3600);
@@ -58,39 +72,55 @@ function LineRowImpl({
   onJump,
   onLoop,
   onStopRepeat,
+  onDelete,
   progress,
   isCurrent,
   isRepeating,
   isEditing,
   onEditStart,
   onEditEnd,
+  selectionMode,
+  isSelected,
+  onSelectToggle,
 }: {
   line: Line;
   index: number;
   onJump: (startMs: number) => void;
   onLoop: (lineId: number) => void;
   onStopRepeat: () => void;
+  onDelete: (lineId: number, preview: string, contentId: number) => void;
   progress?: LineProgress;
   isCurrent?: boolean;
   isRepeating?: boolean;
   isEditing: boolean;
   onEditStart: (lineId: number) => void;
   onEditEnd: () => void;
+  selectionMode: boolean;
+  isSelected: boolean;
+  onSelectToggle: (lineId: number) => void;
 }) {
-  if (!isEditing) {
+  // 선택 모드 중엔 편집 모드 진입 막음 (선택 토글 우선)
+  if (!isEditing || selectionMode) {
     return (
       <ReadOnlyRow
         line={line}
         index={index}
         onEnterEdit={() => {
-          if (line.id != null) onEditStart(line.id);
+          if (selectionMode) {
+            if (line.id != null) onSelectToggle(line.id);
+          } else if (line.id != null) {
+            onEditStart(line.id);
+          }
         }}
         onJump={onJump}
         onLoop={onLoop}
         onStopRepeat={onStopRepeat}
+        onDelete={onDelete}
         progress={progress}
         isCurrent={isCurrent}
         isRepeating={isRepeating}
+        selectionMode={selectionMode}
+        isSelected={isSelected}
       />
     );
   }
@@ -104,11 +134,15 @@ export const LineRow = memo(LineRowImpl, (prev, next) => {
     prev.onJump === next.onJump &&
     prev.onLoop === next.onLoop &&
     prev.onStopRepeat === next.onStopRepeat &&
+    prev.onDelete === next.onDelete &&
     prev.isCurrent === next.isCurrent &&
     prev.isRepeating === next.isRepeating &&
     prev.isEditing === next.isEditing &&
     prev.onEditStart === next.onEditStart &&
     prev.onEditEnd === next.onEditEnd &&
+    prev.selectionMode === next.selectionMode &&
+    prev.isSelected === next.isSelected &&
+    prev.onSelectToggle === next.onSelectToggle &&
     (prev.progress?.listenCount ?? 0) === (next.progress?.listenCount ?? 0) &&
     (prev.progress?.isMemorized ?? 0) === (next.progress?.isMemorized ?? 0)
   );
@@ -121,9 +155,12 @@ function ReadOnlyRow({
   onJump,
   onLoop,
   onStopRepeat,
+  onDelete,
   progress,
   isCurrent,
   isRepeating,
+  selectionMode,
+  isSelected,
 }: {
   line: Line;
   index: number;
@@ -131,17 +168,24 @@ function ReadOnlyRow({
   onJump: (startMs: number) => void;
   onLoop: (lineId: number) => void;
   onStopRepeat: () => void;
+  onDelete: (lineId: number, preview: string, contentId: number) => void;
   progress?: LineProgress;
   isCurrent?: boolean;
   isRepeating?: boolean;
+  selectionMode: boolean;
+  isSelected: boolean;
 }) {
   const isUserAdded = line.source === 'user';
   const wasEdited = !!line.editedAt;
   const badge = progressBadge(progress);
   return (
     <div
-      className={`px-4 py-3 border-b border-zinc-800 ${
-        isCurrent ? 'bg-blue-900/40 ring-2 ring-blue-400/70' : 'hover:bg-zinc-900/50'
+      className={`group px-4 py-3 border-b border-zinc-800 ${
+        isSelected
+          ? 'bg-red-950/30 ring-2 ring-red-500/50'
+          : isCurrent
+            ? 'bg-blue-900/40 ring-2 ring-blue-400/70'
+            : 'hover:bg-zinc-900/50'
       } ${isUserAdded ? 'border-l-4 border-l-purple-500' : ''}`}
     >
       <div
@@ -156,10 +200,29 @@ function ReadOnlyRow({
             : '아직 안 들음 — 클릭해서 이 시점부터 영상 재생'
         }
       >
-        <span
-          className={`inline-block w-2 h-2 rounded-full ${badge.color} shrink-0`}
-          aria-label={`progress ${badge.count}`}
-        ></span>
+        {selectionMode ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEnterEdit(); // selectionMode일 때 LineRowImpl이 onSelectToggle로 매핑됨
+            }}
+            className={`inline-flex items-center justify-center w-4 h-4 rounded border shrink-0 cursor-pointer ${
+              isSelected
+                ? 'bg-red-600 border-red-500 text-white hover:bg-red-500'
+                : 'bg-zinc-900 border-zinc-600 hover:border-zinc-400'
+            }`}
+            aria-label={isSelected ? '선택 해제' : '선택'}
+            title={isSelected ? '선택 해제' : '이 라인 선택'}
+          >
+            {isSelected && <span className="text-[10px] leading-none">✓</span>}
+          </button>
+        ) : (
+          <span
+            className={`inline-block w-2 h-2 rounded-full ${badge.color} shrink-0`}
+            aria-label={`progress ${badge.count}`}
+          ></span>
+        )}
         <span className="text-blue-500">▶</span>
         <button
           type="button"
@@ -235,6 +298,22 @@ function ReadOnlyRow({
             >
               ✎
             </span>
+          )}
+          {!selectionMode && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (line.id == null) return;
+                const preview = (line.textEn || line.textKo || '(빈 라인)').slice(0, 60);
+                onDelete(line.id, preview, line.contentId);
+              }}
+              className="opacity-0 group-hover:opacity-70 hover:!opacity-100 text-zinc-400 hover:text-red-400 cursor-pointer transition-opacity p-0.5"
+              title="이 라인 삭제"
+              tabIndex={-1}
+            >
+              <TrashIcon className="w-4 h-4" />
+            </button>
           )}
         </span>
       </div>
@@ -420,7 +499,7 @@ function EditRow({
           disabled={busy}
           className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded disabled:opacity-50"
         >
-          {busy ? '...' : dirty ? '저장 (Ctrl+Enter)' : '닫기'}
+          {busy ? '...' : '저장 (Ctrl+Enter)'}
         </button>
         <button
           type="button"
