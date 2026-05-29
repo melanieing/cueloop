@@ -577,8 +577,8 @@ function EditRow({
         ref={firstFieldRef}
         value={textEn}
         onChange={(e) => setTextEn(e.target.value)}
-        className="w-full bg-zinc-950 text-zinc-100 text-sm rounded px-2 py-1.5 border border-zinc-700 focus:border-blue-500 focus:outline-none resize-y min-h-10"
-        rows={2}
+        className="w-full bg-zinc-950 text-zinc-100 text-sm rounded px-2 py-1.5 border border-zinc-700 focus:border-blue-500 focus:outline-none resize-y min-h-30"
+        rows={6}
       />
       <label className="block text-[10px] uppercase tracking-wide text-zinc-500 mb-1 mt-2">
         한국어
@@ -586,18 +586,18 @@ function EditRow({
       <textarea
         value={textKo}
         onChange={(e) => setTextKo(e.target.value)}
-        className="w-full bg-zinc-950 text-zinc-100 text-sm rounded px-2 py-1.5 border border-zinc-700 focus:border-blue-500 focus:outline-none resize-y min-h-10"
-        rows={2}
+        className="w-full bg-zinc-950 text-zinc-100 text-sm rounded px-2 py-1.5 border border-zinc-700 focus:border-blue-500 focus:outline-none resize-y min-h-30"
+        rows={6}
         placeholder="한국어 자막을 입력하세요"
       />
       <label className="block text-[10px] uppercase tracking-wide text-zinc-500 mb-1 mt-2">
         메모 (옵션)
       </label>
-      <input
-        type="text"
+      <textarea
         value={note}
         onChange={(e) => setNote(e.target.value)}
-        className="w-full bg-zinc-950 text-zinc-100 text-sm rounded px-2 py-1.5 border border-zinc-700 focus:border-blue-500 focus:outline-none"
+        className="w-full bg-zinc-950 text-zinc-100 text-sm rounded px-2 py-1.5 border border-zinc-700 focus:border-blue-500 focus:outline-none resize-y min-h-12"
+        rows={2}
         placeholder="단어 뜻, 발음 팁, 학습 메모..."
       />
       <label className="flex items-center gap-2 mt-3 cursor-pointer text-xs text-zinc-300 select-none">
