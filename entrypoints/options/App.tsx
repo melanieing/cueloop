@@ -270,12 +270,14 @@ export default function App() {
                 ['H', '한국어 자막 표시/숨김 토글'],
                 ['E', 'English 자막 표시/숨김 토글 (둘 다 끄면 무자막 shadowing)'],
                 ['L', '현재 라인 반복 시작/정지'],
+                ['SPACE', '영상 재생 / 일시정지'],
                 ['A', 'CustomLoop 시작점 마킹'],
                 ['B', 'CustomLoop 끝점 마킹 (자동 저장 + 반복 시작)'],
                 ['S', '진행 중인 CustomLoop에 라벨 저장'],
                 ['↑ / ↓', '이전 / 다음 라인'],
                 ['← / →', '2초 뒤로 / 앞으로'],
                 ['R', '현재 라인 처음부터 다시'],
+                ['ESC', '다중 선택 모드 해제 / 편집 취소'],
               ].map(([key, desc]) => (
                 <tr key={key} className="border-b border-zinc-800/60 last:border-0">
                   <td className="py-1.5 pr-3 w-32">

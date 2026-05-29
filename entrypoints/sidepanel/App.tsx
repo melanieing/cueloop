@@ -847,6 +847,7 @@ export default function App() {
                   ['H', '한국어 자막 ON/OFF'],
                   ['E', 'English 자막 ON/OFF (둘 다 OFF면 shadowing)'],
                   ['L', '현재 라인 반복 시작/정지'],
+                  ['SPACE', '영상 재생 / 일시정지'],
                   ['A', 'CustomLoop 시작점 마킹'],
                   ['B', 'CustomLoop 끝점 (자동 저장 + 반복)'],
                   ['S', '진행 중 CustomLoop에 라벨 저장'],
