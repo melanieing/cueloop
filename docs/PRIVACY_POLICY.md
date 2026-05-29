@@ -32,7 +32,6 @@ Cueloop이 사용자의 브라우저 IndexedDB에 **로컬로** 저장하는 데
 
 | 권한 | 사용 목적 |
 |---|---|
-| `storage` | Chrome 확장 표준 권한 (Dexie/IndexedDB 사용에 필요) |
 | `sidePanel` | 학습용 사이드 패널 UI 제공 |
 | `alarms` | 매일 자정 학습 스트릭 갱신 (외부 호출 없음) |
 | `notifications` | 일일 목표 달성 시 사용자에게 알림 |
@@ -89,7 +88,6 @@ Cueloop stores the following data **locally** in the user's browser IndexedDB:
 
 | Permission | Purpose |
 |---|---|
-| `storage` | Standard Chrome extension permission (required for Dexie/IndexedDB usage) |
 | `sidePanel` | Provide learning side panel UI |
 | `alarms` | Daily midnight streak update (no external calls) |
 | `notifications` | Notify user on daily goal completion |

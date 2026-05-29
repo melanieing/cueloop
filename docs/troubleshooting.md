@@ -622,3 +622,46 @@ if (currentMovieId !== detail.movieId) {
 **교훈**:
 - 페이지 전역 hijack(JSON.parse, fetch 등)은 "원하는 컨텍스트"만 통과시키는 가드가 필수. 캡처는 광범위하게 하되 **소비 시점에 컨텍스트 검증**.
 - Netflix hover 미리보기처럼 사용자가 의도하지 않은 자동 재생이 데이터 오염원이 될 수 있음. URL/movieId 일치는 "사용자가 실제로 그 콘텐츠를 보고 있다"는 신뢰할 만한 신호.
+
+### #25. Chrome Web Store 거절: 사용하지 않는 `storage` 권한 ("Purple Potassium")
+
+**증상** (2026-05-29 CWS 심사 결과): 2차 재제출 직후 심사 거절. 사유:
+> "다음 권한을 요청하지만 사용하지는 않습니다 (storage)."
+> "위반 참조 ID: Purple Potassium"
+> CWS Permissions Policy: "제품의 기능 또는 서비스를 구현하는 데 필요한 가장 좁은 범위의 액세스 권한을 요청합니다. 아직 구현되지 않은 서비스 또는 기능에 도움이 될 수 있는 권한을 요청하여 제품의 '미래에 대비'하지 마세요."
+
+**원인**:
+- `wxt.config.ts`의 `permissions`에 `'storage'`가 있었음 — Day 1 WXT 스캐폴딩 또는 초기 설계 시점에 "혹시 모르니"로 들어간 것
+- 실제 코드: `grep -rn "chrome\.storage\|browser\.storage"` 결과 **0건**
+- 모든 데이터는 IndexedDB(Dexie)에 저장. IndexedDB는 일반 web API라 Chrome `storage` 권한과 완전 무관
+- CWS의 자동 정적 분석이 manifest에 선언된 권한과 코드 사용처를 비교해 mismatch 검출
+
+**해결**:
+1. `wxt.config.ts`의 `permissions`에서 `'storage'` 삭제 → `['sidePanel', 'alarms', 'notifications']`
+2. `PRIVACY_POLICY.md`와 `WEB_STORE_LISTING.md`의 권한 표에서도 storage 행 제거
+3. 빌드 후 `.output/chrome-mv3/manifest.json` 직접 열어 `"permissions"` 확인 — `storage` 빠진 것 검증
+4. 새 zip 만들어 재제출
+
+**부수적 정리 (재제출 직전 같이)**:
+- **`popup` entrypoint 폴더 삭제** — 이전 작업에서 `chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })`로 action click을 사이드패널로 redirect해서 popup은 더 이상 안 열림. 사실상 dead code. popup의 진도/스트릭 UI는 이미 사이드패널 모달로 통합됨. 심사관이 "reachable 아닌 popup이 왜 등록?" 의문 가질 가능성 사전 차단.
+- WXT가 popup entrypoint 제거 시 `manifest.action`도 함께 사라지면 `chrome.action.setBadgeText`(스트릭 배지) 동작 불가 → `wxt.config.ts`에 `action: { default_title: 'Cueloop' }`만 명시적으로 추가해서 action field 자체는 유지.
+
+**다른 권한 사전 검증** (재거절 방지, grep 결과로 검증):
+- `sidePanel`: `browser.sidePanel.setPanelBehavior` (background.ts) ✓
+- `alarms`: `browser.alarms.create` + `onAlarm` (background.ts) ✓
+- `notifications`: `browser.notifications.create` (background.ts) ✓
+- `https://*.netflix.com/*`: content script 주입 + overlay UI ✓
+- `https://*.nflxvideo.net/*`: background SW의 자막 fetch ✓
+
+**listing form 사전 정리** (영문):
+- Permission justification 텍스트를 영문으로 다듬어서 `WEB_STORE_LISTING.md`에 박아둠 (form 복붙용)
+- "Data usage" 항목: `Website content`만 **Yes** (자막 캡처), 나머지 전부 No. 외부 전송도 모두 No.
+- Single purpose 영문 작성: 100LS 단일 학습 목적 명시
+
+**교훈**:
+- 빌드 후 manifest.json을 직접 열어보는 습관 (troubleshooting #22의 `open_in_tab` 케이스와 동일). 권한 선언과 실제 사용 일치 여부 grep으로 정기 검증.
+- WXT 스캐폴딩 기본 권한이라고 무비판적으로 두지 말 것. 실제 사용 안 하면 즉시 제거.
+- CWS는 영문 form 입력이 안전. 본사 심사라 한국어 정당화는 미스커뮤니케이션 위험.
+- "Purple Potassium"은 unused permissions 위반의 CWS 내부 코드명. 같은 violation code가 나오면 같은 종류의 문제 — 권한 감사 우선.
+
+---

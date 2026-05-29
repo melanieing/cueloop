@@ -170,34 +170,50 @@ Cueloop is a tool that makes this method smooth to execute on Netflix.
 
 각 권한에 대해 Web Store 심사관에게 설명할 텍스트:
 
-### `storage`
-```
-Standard Chrome storage permission. Required for Dexie/IndexedDB to function. No data is sent externally.
-```
-
 ### `sidePanel`
 ```
-Provides the learning side panel UI where users review lines, edit subtitles, manage CustomLoops, and track progress.
+Provides the learning side panel UI where users review subtitle lines, edit them, manage A-B repeat segments (CustomLoops), and track learning progress.
 ```
 
 ### `alarms`
 ```
-Schedules a daily midnight alarm to update the learning streak counter (no external calls — runs entirely locally).
+Schedules a daily midnight alarm to update the learning streak counter. The alarm runs entirely locally with no external calls.
 ```
 
 ### `notifications`
 ```
-Shows a desktop notification when the user achieves their daily learning goal. No remote notification service used.
+Shows a desktop notification when the user achieves both daily learning goals (study time and 100LS repeat count). No remote notification service is used.
 ```
 
 ### Host permission `https://*.netflix.com/*`
 ```
-Injects a dual subtitle overlay (Shadow DOM, isolated from Netflix CSS) and captures Netflix's own subtitle track URLs from the page's JSON data so the extension can fetch the subtitles. The extension does not modify, download, or redistribute Netflix's video content — only subtitles, which are displayed back to the user in the same browser session.
+The extension injects a dual subtitle overlay (Shadow DOM, isolated from Netflix's own CSS) on Netflix watch pages and captures the subtitle track URLs from the page's JSON data so it can fetch the subtitle files. The extension does not modify, download, or redistribute Netflix's video content — only subtitles, which are displayed back to the user in the same browser session for English-learning purposes.
 ```
 
 ### Host permission `https://*.nflxvideo.net/*`
 ```
-Netflix hosts subtitle files (dfxp/ttml format) on its Open Connect CDN at nflxvideo.net. The extension fetches these subtitle files from the background service worker (to bypass page-level CORS restrictions) and stores them locally in IndexedDB for the user's learning. No video stream data is accessed.
+Netflix hosts subtitle files (XML / dfxp / ttml format — text only, not video, not executable code) on its Open Connect CDN at *.nflxvideo.net. The extension's background service worker fetches only these subtitle text files from this domain to bypass page-level CORS restrictions, and stores them locally in the user's IndexedDB for learning. No video stream is accessed or downloaded.
+```
+
+### Data usage disclosure (CWS form)
+| Item | Answer |
+|---|---|
+| Personally identifiable info | No |
+| Health info | No |
+| Financial info | No |
+| Authentication info | No |
+| Personal communications | No |
+| Location | No |
+| Web history | No |
+| User activity | No |
+| **Website content** | **Yes** (Netflix subtitles captured and stored locally) |
+| Data transferred off device | No |
+| Data sold or shared | No |
+| Data used for unrelated purposes | No |
+
+### Single purpose (CWS form)
+```
+A tool that automates the "100 Listenings" English-learning method on Netflix. Dual subtitle overlay, line-level A-B repeat, in-place subtitle editing, and learning progress tracking are all integrated to serve this single educational purpose.
 ```
 
 ---
@@ -209,10 +225,10 @@ Chrome Web Store 권장 해상도: **1280×800 또는 640×400 (PNG/JPG)**. 5장
 | # | 장면 | 캡처 방법 |
 |---|---|---|
 | 1 | **듀얼 자막 오버레이** | Netflix watch 페이지, 영어+한국어 자막 동시 표시. 화면 하단에 100LS 카운터(예: 30/100) 보이게. |
-| 2 | **사이드패널 라인 리스트** | 라인 여러 줄 + 진도 색상 dot + 현재 라인 파란 highlight + ✨ 외움 후보 뱃지가 보이는 view. |
+| 2 | **사이드패널 라인 리스트** | 라인 여러 줄 + 진도 색상 dot + 현재 라인 파란 highlight + ✨ 외움 후보 뱃지 / ⚠ 검토 / ★ 중요 마크가 보이는 view. |
 | 3 | **CustomLoop 차별점** | 사이드패널의 "🔁 내 구간" 섹션이 펼쳐진 상태 + 보라 톤 강조. 라벨 있는 loop 2-3개. |
-| 4 | **자막 편집 (차별점 #2)** | LineRow가 EditRow로 펼쳐진 상태 (영어/한국어/메모 input). |
-| 5 | **Popup 진도 + 스트릭** | 확장 아이콘 클릭 popup. 🔥 스트릭 + 두 progress bar + 🎉 오늘 목표 달성 박스. |
+| 4 | **자막 편집 (차별점 #2)** | LineRow가 EditRow로 펼쳐진 상태 (영어/한국어/메모 + 시각 input + ⏱ 지금 버튼 + ⚠/★ 체크박스). |
+| 5 | **사이드패널 진도 모달** | 🔥 진도 버튼 클릭으로 펼친 모달 — 스트릭 + 학습 시간/100LS 두 progress bar + 🎉 오늘 목표 달성 박스. |
 
 **캡처 도구**: Windows 캡처 도구 (`Win + Shift + S`) 또는 OBS. 캡처 후 Photoshop/Squoosh로 1280×800으로 crop.
 

@@ -4,8 +4,8 @@
 
 ## 현재 상태
 
-- **단계**: v0.2 / **🚀 Web Store 심사 대기 중** (Phase 1 무료 출시). 첫 제출 → UX 개선 → 재제출 → 콘텐츠 관리/FAQ 추가 후 2차 재제출(2026-05-28). 심사 대기.
-- **마지막 업데이트**: 2026-05-28
+- **단계**: v0.2 / **🚀 Web Store 심사 대기 중** (Phase 1). 1차 제출 → UX 개선 재제출 → 콘텐츠/FAQ 보강 재제출 → CWS 거절 (사용하지 않는 storage 권한) → 권한·dead-code 정리 후 4차 제출(2026-05-29). 동시에 v0.2.1 후속 변경 다수 누적 중.
+- **마지막 업데이트**: 2026-05-29
 - **빌드 산출물**: `.output/chrome-mv3/` (production 빌드). dev watch는 WSL에서 작동 안 함 ([troubleshooting #5](./troubleshooting.md))
 - **핵심 차별점 (2가지)**:
   - CustomLoop (임의 A-B 구간 반복) — Day 2 schema 반영, Day 6 구현
@@ -215,8 +215,27 @@ v0.3에서 음성 인식 발화 검증과 함께 통합 검토.
 재제출:
 - [x] Web Store 1차 재제출 (2026-05-28) — UX 개선 (onboarding, 단일 클릭 사이드패널, 진도 모달).
 - [x] Web Store 2차 재제출 (2026-05-28) — 콘텐츠 삭제 + hover 차단 + FAQ 포함.
-- [ ] **심사 통과 대기** (이후 추가 개선은 v0.2.1 후속 업데이트로 모음)
+- [x] **CWS 거절 (2026-05-29)** — 사용하지 않는 `storage` 권한 요청. Purple Potassium 정책 위반 ([troubleshooting #25](./troubleshooting.md)).
+- [x] **3차 재제출 준비 완료 (2026-05-29)**:
+  - `storage` 권한 제거 (Dexie/IndexedDB는 chrome.storage API와 무관)
+  - `popup` entrypoint 폴더 삭제 — `openPanelOnActionClick:true` 이후 reachable 안 되던 dead code
+  - `action.default_title` 명시 (popup 없어진 후 action field 자체 사라지지 않도록 — chrome.action.setBadgeText 동작 유지)
+  - listing form용 영문 권한 정당화 + Single purpose + Data usage 답변 영문화 (`docs/WEB_STORE_LISTING.md`)
+  - 다른 권한(sidePanel/alarms/notifications/host_permissions) 모두 사용처 grep으로 검증
+- [ ] **심사 통과 대기** (이후 v0.2.1 후속 업데이트로 누적 변경 출시)
 - [ ] 출시 후 첫 사용자 인지 — 본인 + 가까운 1-2명에게 공유
+
+v0.2.1 후속 업데이트 누적 변경 (심사 통과 후 `package.json` 0.2.0 → 0.2.1 + zip 재업로드):
+- 라인 단일 삭제 (hover SVG trash + in-page confirm) + 다중 선택 모드 (📋 → "여러 줄 삭제") + 일괄 삭제 후 자동 종료
+- 라인 반복이 다른 창 포커스 시에도 유지 (`video.timeupdate` 보조 + cancel 임계치 완화)
+- 영어 자막 토글 E 키 (둘 다 OFF면 shadowing 모드)
+- 사이드패널 단축키 cheat sheet 모달 (⌨ 버튼)
+- 오버레이 토스트 + indicator 폰트 자막 크기 가까이 ↑
+- 자막 부정확 마크 (⚠) + 필터, 중요 마크 (★) + 필터 — 둘 다 자동 reset trap fix
+- 시각 input 옆 ⏱ 지금 버튼 (영상 현재 시각 → input)
+- 스페이스바 재생/일시정지 (사이드패널 focus에서도)
+- 헤더 그룹화 (정보 팝업 → stats 줄, 토글 → 행 2)
+- EditRow textarea 높이 ↑ + 메모도 textarea로
 
 Phase 1 운영 모니터링 (출시 후):
 - [ ] 매주 사용자 수 + 평점 + 리뷰 체크

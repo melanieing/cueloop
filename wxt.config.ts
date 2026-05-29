@@ -5,7 +5,15 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
   manifest: {
     name: 'Cueloop — 영화로 영어 100번 듣기',
-    permissions: ['storage', 'sidePanel', 'alarms', 'notifications'],
+    // storage 권한은 IndexedDB(Dexie)와 무관. chrome.storage.* API 미사용이라 제외.
+    // (CWS 심사 #1: "사용하지 않는 storage 권한 요청" 거절 — 2026-05-29)
+    permissions: ['sidePanel', 'alarms', 'notifications'],
+    // popup entrypoint는 제거됨 (action click → sidepanel로 redirect라 dead code).
+    // 단 chrome.action.setBadgeText(스트릭 배지)를 쓰려면 action 필드 자체는 필요.
+    // default_popup 없음 — setPanelBehavior({openPanelOnActionClick:true})로 사이드패널 토글.
+    action: {
+      default_title: 'Cueloop',
+    },
     host_permissions: [
       'https://*.netflix.com/*',
       // Netflix Open Connect CDN — dfxp 자막 파일이 호스팅됨.
