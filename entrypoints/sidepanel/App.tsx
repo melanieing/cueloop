@@ -1083,7 +1083,7 @@ export default function App() {
           className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-full px-4 py-2 shadow-lg z-40 flex items-center gap-1.5"
           title="현재 재생 중인 라인으로 이동"
         >
-          📺 현재 라인으로 ↓
+          📺 현재 라인으로 이동
         </button>
       )}
 
