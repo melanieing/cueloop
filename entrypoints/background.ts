@@ -407,6 +407,39 @@ export default defineBackground(() => {
       return true;
     }
 
+    if (message?.type === 'GET_CURRENT_VIDEO_TIME') {
+      const { contentId } = message.payload;
+      void (async () => {
+        const content = await db.contents.get(contentId);
+        if (!content?.contentId) {
+          sendResponse({ ok: false, error: 'content not found' });
+          return;
+        }
+        const movieId = content.contentId;
+        const tabs = await browser.tabs.query({ url: 'https://*.netflix.com/watch/*' });
+        for (const tab of tabs) {
+          if (tab.id == null) continue;
+          const tabMovieId = extractMovieIdFromUrl(tab.url);
+          if (tabMovieId !== movieId) continue;
+          try {
+            const fwd: CueloopMessage = { type: 'GET_CURRENT_VIDEO_TIME_IN_TAB' };
+            const resp = (await browser.tabs.sendMessage(tab.id, fwd)) as
+              | { ok?: boolean; timeMs?: number; error?: string }
+              | undefined;
+            sendResponse(resp ?? { ok: false, error: 'no response' });
+            return;
+          } catch {
+            // try next
+          }
+        }
+        sendResponse({
+          ok: false,
+          error: `영화(${movieId}) 재생 중인 Netflix 탭을 찾을 수 없음`,
+        });
+      })();
+      return true;
+    }
+
     if (message?.type === 'OVERLAY_SHORTCUT') {
       const fwd: CueloopMessage = {
         type: 'OVERLAY_SHORTCUT_IN_TAB',

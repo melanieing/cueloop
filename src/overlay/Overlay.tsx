@@ -588,6 +588,16 @@ export function Overlay({ video }: OverlayProps) {
         e.preventDefault();
         e.stopPropagation();
         replayCurrentLine();
+      } else if (key === ' ' || e.code === 'Space') {
+        e.preventDefault();
+        e.stopPropagation();
+        if (video.paused) {
+          void video.play().catch(() => {});
+          showToast('▶ 재생');
+        } else {
+          video.pause();
+          showToast('⏸ 일시정지');
+        }
       } else if (key === 'arrowleft') {
         e.preventDefault();
         e.stopPropagation();

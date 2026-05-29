@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { db, type Line } from '@/src/db';
+import type { CueloopMessage } from '@/src/messages';
 import { broadcastContentUpdate } from '@/src/lib/broadcastUpdate';
 import { formatTime } from './LineRow';
 
@@ -40,6 +41,28 @@ export function InsertLineModal({ contentId, defaultStartMs, defaultEndMs, onClo
     firstFieldRef.current?.focus();
     firstFieldRef.current?.select();
   }, []);
+
+  async function fillFromVideo(target: 'start' | 'end') {
+    const msg: CueloopMessage = {
+      type: 'GET_CURRENT_VIDEO_TIME',
+      payload: { contentId },
+    };
+    try {
+      const resp = (await browser.runtime.sendMessage(msg)) as
+        | { ok?: boolean; timeMs?: number; error?: string }
+        | undefined;
+      if (resp?.ok && typeof resp.timeMs === 'number') {
+        const formatted = formatTime(resp.timeMs);
+        if (target === 'start') setStartInput(formatted);
+        else setEndInput(formatted);
+        setError(null);
+      } else {
+        setError(resp?.error ?? '영상 시각을 가져올 수 없음');
+      }
+    } catch (err) {
+      setError(String(err));
+    }
+  }
 
   async function save() {
     const startMs = parseTimeToMs(startInput);
@@ -109,26 +132,46 @@ export function InsertLineModal({ contentId, defaultStartMs, defaultEndMs, onClo
             <label className="block text-[10px] uppercase tracking-wide text-zinc-500 mb-1">
               시작
             </label>
-            <input
-              ref={firstFieldRef}
-              type="text"
-              value={startInput}
-              onChange={(e) => setStartInput(e.target.value)}
-              className="w-full bg-zinc-950 text-zinc-100 text-sm font-mono rounded px-2 py-1.5 border border-zinc-700 focus:border-blue-500 focus:outline-none"
-              placeholder="01:23.456"
-            />
+            <div className="flex gap-1">
+              <input
+                ref={firstFieldRef}
+                type="text"
+                value={startInput}
+                onChange={(e) => setStartInput(e.target.value)}
+                className="flex-1 min-w-0 bg-zinc-950 text-zinc-100 text-sm font-mono rounded px-2 py-1.5 border border-zinc-700 focus:border-blue-500 focus:outline-none"
+                placeholder="01:23.456"
+              />
+              <button
+                type="button"
+                onClick={() => void fillFromVideo('start')}
+                className="px-1.5 py-0.5 text-[10px] bg-blue-950/60 hover:bg-blue-900/60 border border-blue-800 text-blue-200 rounded cursor-pointer whitespace-nowrap"
+                title="영상의 현재 재생 시각을 시작 시각으로"
+              >
+                ⏱ 지금
+              </button>
+            </div>
           </div>
           <div>
             <label className="block text-[10px] uppercase tracking-wide text-zinc-500 mb-1">
               끝
             </label>
-            <input
-              type="text"
-              value={endInput}
-              onChange={(e) => setEndInput(e.target.value)}
-              className="w-full bg-zinc-950 text-zinc-100 text-sm font-mono rounded px-2 py-1.5 border border-zinc-700 focus:border-blue-500 focus:outline-none"
-              placeholder="01:25.000"
-            />
+            <div className="flex gap-1">
+              <input
+                type="text"
+                value={endInput}
+                onChange={(e) => setEndInput(e.target.value)}
+                className="flex-1 min-w-0 bg-zinc-950 text-zinc-100 text-sm font-mono rounded px-2 py-1.5 border border-zinc-700 focus:border-blue-500 focus:outline-none"
+                placeholder="01:25.000"
+              />
+              <button
+                type="button"
+                onClick={() => void fillFromVideo('end')}
+                className="px-1.5 py-0.5 text-[10px] bg-blue-950/60 hover:bg-blue-900/60 border border-blue-800 text-blue-200 rounded cursor-pointer whitespace-nowrap"
+                title="영상의 현재 재생 시각을 종료 시각으로"
+              >
+                ⏱ 지금
+              </button>
+            </div>
           </div>
         </div>
 

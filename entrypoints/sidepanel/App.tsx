@@ -137,6 +137,7 @@ export default function App() {
   const [editingLineId, setEditingLineId] = useState<number | null>(null);
   const [hideMemorized, setHideMemorized] = useState(false);
   const [showOnlyNeedsReview, setShowOnlyNeedsReview] = useState(false);
+  const [showOnlyStarred, setShowOnlyStarred] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
   const [progressOpen, setProgressOpen] = useState(false);
@@ -200,7 +201,7 @@ export default function App() {
   // 단, input/textarea/select에 focus 있거나 편집 모드일 땐 그 입력을 우선.
   useEffect(() => {
     const HANDLED_KEYS = new Set([
-      'h', 'e', 'l', 'a', 'b', 's', 'r',
+      'h', 'e', 'l', 'a', 'b', 's', 'r', ' ',
       'arrowleft', 'arrowright', 'arrowup', 'arrowdown',
     ]);
     function onKeyDown(e: KeyboardEvent) {
@@ -453,14 +454,28 @@ export default function App() {
     return n;
   }, [lines]);
 
-  // 마지막 검토 라인을 해제하면 필터 자동 OFF — 빈 화면 + 토글 사라지는 trap 방지
+  const starredCount = useMemo(() => {
+    if (!lines) return 0;
+    let n = 0;
+    for (const l of lines) {
+      if (l.isStarred === 1) n++;
+    }
+    return n;
+  }, [lines]);
+
+  // 마지막 마크 해제 시 해당 필터 자동 OFF — 빈 화면 + 토글 사라지는 trap 방지
   useEffect(() => {
     if (showOnlyNeedsReview && needsReviewCount === 0) {
       setShowOnlyNeedsReview(false);
     }
   }, [showOnlyNeedsReview, needsReviewCount]);
+  useEffect(() => {
+    if (showOnlyStarred && starredCount === 0) {
+      setShowOnlyStarred(false);
+    }
+  }, [showOnlyStarred, starredCount]);
 
-  // 필터링 — 외움 숨김 + 검토 필요만 표시
+  // 필터링 — 외움 숨김 + 검토만 + 중요만 (AND 조합)
   const displayLines = useMemo(() => {
     if (!lines) return lines;
     let result = lines;
@@ -473,8 +488,11 @@ export default function App() {
     if (showOnlyNeedsReview) {
       result = result.filter((l) => l.needsReview === 1);
     }
+    if (showOnlyStarred) {
+      result = result.filter((l) => l.isStarred === 1);
+    }
     return result;
-  }, [lines, hideMemorized, showOnlyNeedsReview, progressMap]);
+  }, [lines, hideMemorized, showOnlyNeedsReview, showOnlyStarred, progressMap]);
 
   if (contents === undefined) {
     return (
@@ -691,6 +709,25 @@ export default function App() {
               >
                 ⚠ 검토 {needsReviewCount}
                 {showOnlyNeedsReview ? '만' : ''}
+              </button>
+            )}
+            {(starredCount > 0 || showOnlyStarred) && (
+              <button
+                type="button"
+                onClick={() => setShowOnlyStarred((v) => !v)}
+                className={`text-[10px] rounded px-1.5 py-0.5 border cursor-pointer ${
+                  showOnlyStarred
+                    ? 'text-sky-200 bg-sky-900/60 border-sky-700 hover:bg-sky-800/60'
+                    : 'text-zinc-400 bg-zinc-800 border-zinc-700 hover:bg-zinc-700'
+                }`}
+                title={
+                  showOnlyStarred
+                    ? `중요 ${starredCount}개만 표시 중 — 클릭해서 전체 보기`
+                    : `중요로 마크한 라인 ${starredCount}개 — 클릭해서 이것만 보기`
+                }
+              >
+                ★ 중요 {starredCount}
+                {showOnlyStarred ? '만' : ''}
               </button>
             )}
             <button

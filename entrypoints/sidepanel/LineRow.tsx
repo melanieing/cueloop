@@ -1,5 +1,6 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import { db, type Line, type LineProgress } from '@/src/db';
+import type { CueloopMessage } from '@/src/messages';
 import { broadcastContentUpdate } from '@/src/lib/broadcastUpdate';
 import { parseTimeToMs } from './InsertLineModal';
 
@@ -70,6 +71,13 @@ async function toggleNeedsReview(line: Line): Promise<void> {
   if (line.id == null) return;
   const next: 0 | 1 = line.needsReview === 1 ? 0 : 1;
   await db.lines.update(line.id, { needsReview: next });
+  broadcastContentUpdate(line.contentId);
+}
+
+async function toggleStarred(line: Line): Promise<void> {
+  if (line.id == null) return;
+  const next: 0 | 1 = line.isStarred === 1 ? 0 : 1;
+  await db.lines.update(line.id, { isStarred: next });
   broadcastContentUpdate(line.contentId);
 }
 
@@ -192,13 +200,16 @@ function ReadOnlyRow({
   const isUserAdded = line.source === 'user';
   const wasEdited = !!line.editedAt;
   const needsReview = line.needsReview === 1;
+  const isStarred = line.isStarred === 1;
   const badge = progressBadge(progress);
-  // 좌측 border 우선순위: needsReview(amber) > 사용자추가(purple)
+  // 좌측 border 우선순위: 검토(amber) > 중요(sky) > 사용자추가(purple)
   const leftBorder = needsReview
     ? 'border-l-4 border-l-amber-500'
-    : isUserAdded
-      ? 'border-l-4 border-l-purple-500'
-      : '';
+    : isStarred
+      ? 'border-l-4 border-l-sky-400'
+      : isUserAdded
+        ? 'border-l-4 border-l-purple-500'
+        : '';
   return (
     <div
       className={`group px-4 py-3 border-b border-zinc-800 ${
@@ -308,6 +319,25 @@ function ReadOnlyRow({
             type="button"
             onClick={(e) => {
               e.stopPropagation();
+              void toggleStarred(line);
+            }}
+            className={`text-sm leading-none px-1 cursor-pointer ${
+              isStarred
+                ? 'text-sky-400 hover:text-sky-300'
+                : 'text-zinc-600 hover:text-sky-400'
+            }`}
+            title={
+              isStarred
+                ? '중요 마크 해제'
+                : '몰랐던 단어/표현 — 중요로 마크 (다시 볼 라인)'
+            }
+          >
+            ★
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
               if (line.id != null) {
                 void toggleMemorized(line.id, line.contentId, progress);
               }
@@ -395,6 +425,7 @@ function EditRow({
   const [startInput, setStartInput] = useState(formatTime(line.startMs));
   const [endInput, setEndInput] = useState(formatTime(line.endMs));
   const [needsReview, setNeedsReview] = useState<0 | 1>(line.needsReview === 1 ? 1 : 0);
+  const [isStarred, setIsStarred] = useState<0 | 1>(line.isStarred === 1 ? 1 : 0);
   const [timeError, setTimeError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const firstFieldRef = useRef<HTMLTextAreaElement>(null);
@@ -412,7 +443,8 @@ function EditRow({
     (note || '') !== (line.note ?? '') ||
     startInput !== formatTime(line.startMs) ||
     endInput !== formatTime(line.endMs) ||
-    needsReview !== (line.needsReview === 1 ? 1 : 0);
+    needsReview !== (line.needsReview === 1 ? 1 : 0) ||
+    isStarred !== (line.isStarred === 1 ? 1 : 0);
 
   async function save() {
     if (!line.id || !dirty) {
@@ -439,6 +471,7 @@ function EditRow({
         startMs: newStartMs,
         endMs: newEndMs,
         needsReview,
+        isStarred,
         editedAt: Date.now(),
       });
       broadcastContentUpdate(line.contentId);
@@ -466,12 +499,34 @@ function EditRow({
     }
   }
 
+  async function fillFromVideo(target: 'start' | 'end') {
+    const msg: CueloopMessage = {
+      type: 'GET_CURRENT_VIDEO_TIME',
+      payload: { contentId: line.contentId },
+    };
+    try {
+      const resp = (await browser.runtime.sendMessage(msg)) as
+        | { ok?: boolean; timeMs?: number; error?: string }
+        | undefined;
+      if (resp?.ok && typeof resp.timeMs === 'number') {
+        const formatted = formatTime(resp.timeMs);
+        if (target === 'start') setStartInput(formatted);
+        else setEndInput(formatted);
+        setTimeError(null);
+      } else {
+        setTimeError(resp?.error ?? '영상 시각을 가져올 수 없음');
+      }
+    } catch (err) {
+      setTimeError(String(err));
+    }
+  }
+
   return (
     <div
       className="px-4 py-3 border-b border-zinc-700 bg-zinc-900 ring-1 ring-blue-500/40"
       onKeyDown={handleKeyDown}
     >
-      <div className="flex items-center gap-2 mb-2 text-xs text-zinc-500 font-mono">
+      <div className="flex items-center gap-1.5 mb-2 text-xs text-zinc-500 font-mono flex-wrap">
         <span className="text-zinc-600">#{index + 1}</span>
         <input
           type="text"
@@ -483,6 +538,14 @@ function EditRow({
           className="w-24 bg-zinc-950 text-zinc-200 rounded px-1.5 py-0.5 border border-zinc-700 focus:border-blue-500 focus:outline-none"
           title="시작 시각 (MM:SS.mmm 또는 ms)"
         />
+        <button
+          type="button"
+          onClick={() => void fillFromVideo('start')}
+          className="px-1.5 py-0.5 text-[10px] bg-blue-950/60 hover:bg-blue-900/60 border border-blue-800 text-blue-200 rounded cursor-pointer"
+          title="영상의 현재 재생 시각을 시작 시각으로"
+        >
+          ⏱ 지금
+        </button>
         <span className="text-zinc-700">→</span>
         <input
           type="text"
@@ -494,6 +557,14 @@ function EditRow({
           className="w-24 bg-zinc-950 text-zinc-200 rounded px-1.5 py-0.5 border border-zinc-700 focus:border-blue-500 focus:outline-none"
           title="종료 시각 (MM:SS.mmm 또는 ms)"
         />
+        <button
+          type="button"
+          onClick={() => void fillFromVideo('end')}
+          className="px-1.5 py-0.5 text-[10px] bg-blue-950/60 hover:bg-blue-900/60 border border-blue-800 text-blue-200 rounded cursor-pointer"
+          title="영상의 현재 재생 시각을 종료 시각으로"
+        >
+          ⏱ 지금
+        </button>
         <span className="ml-auto text-blue-400">편집 중</span>
       </div>
       {timeError && (
@@ -539,6 +610,18 @@ function EditRow({
         <span>
           <span className="text-amber-300">⚠ 자막이 부정확함</span>
           <span className="text-zinc-500 ml-1">— 정확히 들리지 않을 때 검토용 마크</span>
+        </span>
+      </label>
+      <label className="flex items-center gap-2 mt-2 cursor-pointer text-xs text-zinc-300 select-none">
+        <input
+          type="checkbox"
+          checked={isStarred === 1}
+          onChange={(e) => setIsStarred(e.target.checked ? 1 : 0)}
+          className="w-4 h-4 accent-sky-500 cursor-pointer"
+        />
+        <span>
+          <span className="text-sky-300">★ 중요 (즐겨찾기)</span>
+          <span className="text-zinc-500 ml-1">— 몰랐던 단어/표현, 다시 볼 라인</span>
         </span>
       </label>
       <div className="flex gap-2 mt-3 items-center flex-wrap">

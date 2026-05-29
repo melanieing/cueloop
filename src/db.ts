@@ -27,6 +27,8 @@ export interface Line {
   editedAt?: number;
   // 자막이 부정확한데 정확한 값을 찾지 못한 라인을 마크. 사용자 검토용 (검색/필터).
   needsReview?: 0 | 1;
+  // 몰랐던 단어·표현이라 다시 볼 라인. 즐겨찾기/북마크 의미.
+  isStarred?: 0 | 1;
 }
 
 export interface LineProgress {

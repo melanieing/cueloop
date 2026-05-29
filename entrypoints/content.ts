@@ -101,6 +101,16 @@ export default defineContentScript({
 
     browser.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       const message = msg as CueloopMessage;
+      if (message?.type === 'GET_CURRENT_VIDEO_TIME_IN_TAB') {
+        const video = document.querySelector('video');
+        if (!video) {
+          sendResponse({ ok: false, error: 'video element not found' });
+          return false;
+        }
+        const timeMs = Math.floor(video.currentTime * 1000);
+        sendResponse({ ok: true, timeMs });
+        return false;
+      }
       if (message?.type === 'JUMP_TO_LINE_IN_TAB') {
         const { expectedMovieId, startMs } = message.payload;
         const currentMovieId = currentMovieIdFromUrl();

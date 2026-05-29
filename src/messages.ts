@@ -108,6 +108,13 @@ export type CueloopMessage =
   | {
       type: 'OVERLAY_SHORTCUT_IN_TAB';
       payload: { key: string };
+    }
+  | {
+      type: 'GET_CURRENT_VIDEO_TIME';
+      payload: { contentId: number };
+    }
+  | {
+      type: 'GET_CURRENT_VIDEO_TIME_IN_TAB';
     };
 
 export type CueloopMessageType = CueloopMessage['type'];
