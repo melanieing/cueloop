@@ -18,6 +18,20 @@ export function TrashIcon({ className }: { className?: string }) {
   );
 }
 
+// 눈 가림(hide) 아이콘 — 목록에서 숨김 토글용 (TrashIcon과 동일하게 SVG로 통일)
+export function EyeOffIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M2 5.27 3.28 4 20 20.72 18.73 22l-3.08-3.08A11.6 11.6 0 0 1 12 19.5C6.5 19.5 1.73 16 0 11c.86-2.46 2.5-4.55 4.6-5.96L2 5.27ZM12 8a3 3 0 0 1 3 3c0 .35-.06.68-.17.99L11 8.17c.31-.11.65-.17 1-.17Zm0-3.5c5.5 0 10.27 3.5 12 8.5a11.8 11.8 0 0 1-2.76 4.3l-2.85-2.85A5 5 0 0 0 12 7a4.8 4.8 0 0 0-1.06.12L8.97 5.15A11.6 11.6 0 0 1 12 4.5Z" />
+    </svg>
+  );
+}
+
 export function formatTime(ms: number): string {
   const totalSec = Math.floor(ms / 1000);
   const h = Math.floor(totalSec / 3600);
@@ -78,6 +92,13 @@ async function toggleStarred(line: Line): Promise<void> {
   if (line.id == null) return;
   const next: 0 | 1 = line.isStarred === 1 ? 0 : 1;
   await db.lines.update(line.id, { isStarred: next });
+  broadcastContentUpdate(line.contentId);
+}
+
+async function toggleHidden(line: Line): Promise<void> {
+  if (line.id == null) return;
+  const next: 0 | 1 = line.isHidden === 1 ? 0 : 1;
+  await db.lines.update(line.id, { isHidden: next });
   broadcastContentUpdate(line.contentId);
 }
 
@@ -201,6 +222,7 @@ function ReadOnlyRow({
   const wasEdited = !!line.editedAt;
   const needsReview = line.needsReview === 1;
   const isStarred = line.isStarred === 1;
+  const isHidden = line.isHidden === 1;
   const badge = progressBadge(progress);
   // 좌측 border 우선순위: 검토(amber) > 중요(sky) > 사용자추가(purple)
   const leftBorder = needsReview
@@ -214,11 +236,11 @@ function ReadOnlyRow({
     <div
       className={`group px-4 py-3 border-b border-zinc-800 ${
         isSelected
-          ? 'bg-red-950/30 ring-2 ring-red-500/50'
+          ? 'bg-zinc-700/40 ring-2 ring-zinc-400/60'
           : isCurrent
             ? 'bg-blue-900/40 ring-2 ring-blue-400/70'
             : 'hover:bg-zinc-900/50'
-      } ${leftBorder}`}
+      } ${leftBorder} ${isHidden ? 'opacity-45' : ''}`}
     >
       <div
         className="flex items-baseline gap-2 mb-1 text-xs font-mono cursor-pointer text-zinc-400 hover:text-blue-400"
@@ -241,7 +263,7 @@ function ReadOnlyRow({
             }}
             className={`inline-flex items-center justify-center w-4 h-4 rounded border shrink-0 cursor-pointer ${
               isSelected
-                ? 'bg-red-600 border-red-500 text-white hover:bg-red-500'
+                ? 'bg-blue-600 border-blue-500 text-white hover:bg-blue-500'
                 : 'bg-zinc-900 border-zinc-600 hover:border-zinc-400'
             }`}
             aria-label={isSelected ? '선택 해제' : '선택'}
@@ -352,6 +374,25 @@ function ReadOnlyRow({
             title={badge.star ? '외움 해제' : badge.candidate ? '외움 후보 — 클릭해서 외움 완료' : '외움 완료로 체크'}
           >
             {badge.star ? '☑' : '☐'}
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              void toggleHidden(line);
+            }}
+            className={`leading-none px-1 cursor-pointer ${
+              isHidden
+                ? 'text-zinc-300 hover:text-zinc-100'
+                : 'text-zinc-600 hover:text-zinc-300'
+            }`}
+            title={
+              isHidden
+                ? '숨김 해제 (목록에 다시 표시)'
+                : '목록에서 숨기기 (노래 가사 등 — 삭제 아님)'
+            }
+          >
+            <EyeOffIcon className="w-3.5 h-3.5 inline-block" />
           </button>
           {isUserAdded && (
             <span

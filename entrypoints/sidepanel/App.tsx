@@ -8,7 +8,7 @@ import { db, type Content } from '@/src/db';
 import type { CueloopMessage } from '@/src/messages';
 import { broadcastContentUpdate } from '@/src/lib/broadcastUpdate';
 import { todayKey, readTodayGoal } from '@/src/lib/dailyGoal';
-import { LineRow, TrashIcon } from './LineRow';
+import { LineRow, TrashIcon, EyeOffIcon } from './LineRow';
 import { InsertLineModal } from './InsertLineModal';
 import { CustomLoopList } from './CustomLoopList';
 
@@ -146,6 +146,7 @@ export default function App() {
   const [hideMemorized, setHideMemorized] = useState(false);
   const [showOnlyNeedsReview, setShowOnlyNeedsReview] = useState(false);
   const [showOnlyStarred, setShowOnlyStarred] = useState(false);
+  const [showHidden, setShowHidden] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
   const [progressOpen, setProgressOpen] = useState(false);
@@ -391,6 +392,28 @@ export default function App() {
     }
   }
 
+  // 선택한 라인 일괄 숨김 — 삭제와 달리 되돌리기 가능하므로 confirm 없이 즉시.
+  async function bulkHideSelected() {
+    if (selectedLineIds.size === 0 || effectiveContentId == null) return;
+    setBulkDeleting(true);
+    try {
+      const ids = [...selectedLineIds];
+      await db.transaction('rw', [db.lines], async () => {
+        for (const id of ids) {
+          await db.lines.update(id, { isHidden: 1 });
+        }
+      });
+      broadcastContentUpdate(effectiveContentId);
+      setSelectedLineIds(new Set());
+      setSelectionMode(false);
+    } catch (err) {
+      setJumpError(`일괄 숨김 실패: ${String(err)}`);
+      setTimeout(() => setJumpError(null), 4000);
+    } finally {
+      setBulkDeleting(false);
+    }
+  }
+
   // 선택 모드 중 ESC로 해제
   useEffect(() => {
     if (!selectionMode) return;
@@ -472,6 +495,15 @@ export default function App() {
     return n;
   }, [lines]);
 
+  const hiddenCount = useMemo(() => {
+    if (!lines) return 0;
+    let n = 0;
+    for (const l of lines) {
+      if (l.isHidden === 1) n++;
+    }
+    return n;
+  }, [lines]);
+
   // 마지막 마크 해제 시 해당 필터 자동 OFF — 빈 화면 + 토글 사라지는 trap 방지
   useEffect(() => {
     if (showOnlyNeedsReview && needsReviewCount === 0) {
@@ -483,11 +515,20 @@ export default function App() {
       setShowOnlyStarred(false);
     }
   }, [showOnlyStarred, starredCount]);
+  useEffect(() => {
+    if (showHidden && hiddenCount === 0) {
+      setShowHidden(false);
+    }
+  }, [showHidden, hiddenCount]);
 
-  // 필터링 — 외움 숨김 + 검토만 + 중요만 (AND 조합)
+  // 필터링 — 숨김 제외(기본) + 외움 숨김 + 검토만 + 중요만 (AND 조합)
   const displayLines = useMemo(() => {
     if (!lines) return lines;
     let result = lines;
+    // 숨긴 라인은 기본 제외. showHidden ON이면 (흐리게) 포함.
+    if (!showHidden) {
+      result = result.filter((l) => l.isHidden !== 1);
+    }
     if (hideMemorized) {
       result = result.filter((l) => {
         if (l.id == null) return true;
@@ -501,7 +542,7 @@ export default function App() {
       result = result.filter((l) => l.isStarred === 1);
     }
     return result;
-  }, [lines, hideMemorized, showOnlyNeedsReview, showOnlyStarred, progressMap]);
+  }, [lines, showHidden, hideMemorized, showOnlyNeedsReview, showOnlyStarred, progressMap]);
 
   if (contents === undefined) {
     return (
@@ -524,10 +565,12 @@ export default function App() {
   }
 
   const totalLines = lines?.length ?? 0;
-  const koFilled = lines?.filter((l) => l.textKo.trim().length > 0).length ?? 0;
   const editedCount = lines?.filter((l) => l.editedAt).length ?? 0;
   const userAddedCount = lines?.filter((l) => l.source === 'user').length ?? 0;
-  const koPercent = totalLines > 0 ? Math.round((koFilled / totalLines) * 100) : 0;
+  // 숨긴 라인 제외한 실제 학습 대상 라인 수 + 외움 비율 (분모 = 학습 대상)
+  const studyLines = Math.max(0, totalLines - hiddenCount);
+  const memorizedPercent =
+    studyLines > 0 ? Math.round((memorizedCount / studyLines) * 100) : 0;
 
   const lastEndMs = lines && lines.length > 0 ? lines[lines.length - 1].endMs : 0;
   const insertDefaultStart = lastEndMs + 1000;
@@ -673,19 +716,12 @@ export default function App() {
               onClick={toggleSelectionMode}
               className={`text-[10px] rounded px-1.5 py-0.5 border cursor-pointer inline-flex items-center gap-1 ${
                 selectionMode
-                  ? 'text-red-200 bg-red-900/60 border-red-700 hover:bg-red-800/60'
+                  ? 'text-zinc-200 bg-zinc-700 border-zinc-600 hover:bg-zinc-600'
                   : 'text-zinc-400 bg-zinc-800 border-zinc-700 hover:bg-zinc-700'
               }`}
-              title={selectionMode ? '선택 모드 해제 (ESC)' : '여러 라인을 한 번에 선택해서 삭제'}
+              title={selectionMode ? '선택 모드 해제 (ESC)' : '여러 라인을 한 번에 선택해서 숨김/삭제'}
             >
-              {selectionMode ? (
-                <>✕ 선택 종료</>
-              ) : (
-                <>
-                  <TrashIcon className="w-3 h-3" />
-                  여러 줄 삭제
-                </>
-              )}
+              {selectionMode ? '✕ 선택 종료' : '☑ 여러 줄 선택'}
             </button>
             {memorizedCount > 0 && (
               <button
@@ -739,6 +775,25 @@ export default function App() {
                 {showOnlyStarred ? '만' : ''}
               </button>
             )}
+            {(hiddenCount > 0 || showHidden) && (
+              <button
+                type="button"
+                onClick={() => setShowHidden((v) => !v)}
+                className={`text-[10px] rounded px-1.5 py-0.5 border cursor-pointer ${
+                  showHidden
+                    ? 'text-zinc-200 bg-zinc-700 border-zinc-600 hover:bg-zinc-600'
+                    : 'text-zinc-400 bg-zinc-800 border-zinc-700 hover:bg-zinc-700'
+                }`}
+                title={
+                  showHidden
+                    ? `숨긴 ${hiddenCount}개도 보는 중 (흐리게) — 클릭해서 다시 감추기`
+                    : `숨긴 라인 ${hiddenCount}개 — 클릭해서 보기/해제`
+                }
+              >
+                🙈 숨김 {hiddenCount}
+                {showHidden ? ' 보는 중' : ''}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setAutoScrollEnabled((v) => !v)}
@@ -755,7 +810,17 @@ export default function App() {
         </div>
         <div className="flex items-center justify-between gap-2">
           <p className="text-xs text-zinc-400 min-w-0 truncate">
-            {totalLines.toLocaleString()} lines · 한국어 {koPercent}% ({koFilled})
+            {hiddenCount > 0 ? (
+              <>
+                {studyLines.toLocaleString()} lines
+                <span className="text-zinc-500"> (전체 {totalLines.toLocaleString()})</span>
+              </>
+            ) : (
+              <>{totalLines.toLocaleString()} lines</>
+            )}
+            <span className="text-emerald-400/90 ml-2">
+              · ☑외움 {memorizedCount} ({memorizedPercent}%)
+            </span>
             {editedCount > 0 && (
               <span className="text-amber-400/80 ml-2">· ✎편집 {editedCount}</span>
             )}
@@ -785,8 +850,8 @@ export default function App() {
       </header>
 
       {selectionMode && (
-        <div className="px-4 py-2 border-b border-red-900/50 bg-red-950/30 text-xs flex items-center gap-2 flex-wrap">
-          <span className="text-red-200 font-semibold">
+        <div className="px-4 py-2 border-b border-zinc-700 bg-zinc-800/60 text-xs flex items-center gap-2 flex-wrap">
+          <span className="text-zinc-100 font-semibold">
             ✓ {selectedLineIds.size}개 선택됨
           </span>
           <button
@@ -806,9 +871,20 @@ export default function App() {
           </button>
           <button
             type="button"
+            onClick={() => void bulkHideSelected()}
+            disabled={selectedLineIds.size === 0 || bulkDeleting}
+            className="ml-auto px-3 py-0.5 text-zinc-100 bg-zinc-700 hover:bg-zinc-600 border border-zinc-600 rounded cursor-pointer disabled:opacity-50 inline-flex items-center gap-1"
+            title="선택한 라인을 목록에서 숨김 (되돌리기 가능)"
+          >
+            <EyeOffIcon className="w-3.5 h-3.5" />
+            선택 숨김
+          </button>
+          <button
+            type="button"
             onClick={() => setConfirmBulkDelete(true)}
             disabled={selectedLineIds.size === 0}
-            className="ml-auto px-3 py-0.5 text-white bg-red-700 hover:bg-red-600 rounded cursor-pointer disabled:opacity-50 inline-flex items-center gap-1"
+            className="px-3 py-0.5 text-white bg-red-700 hover:bg-red-600 rounded cursor-pointer disabled:opacity-50 inline-flex items-center gap-1"
+            title="선택한 라인을 영구 삭제 (되돌리기 불가)"
           >
             <TrashIcon className="w-3.5 h-3.5" />
             선택 삭제

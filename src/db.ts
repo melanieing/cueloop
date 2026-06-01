@@ -29,6 +29,8 @@ export interface Line {
   needsReview?: 0 | 1;
   // 몰랐던 단어·표현이라 다시 볼 라인. 즐겨찾기/북마크 의미.
   isStarred?: 0 | 1;
+  // 노래 가사·삽입곡 등 학습 대상 아닌 라인. 삭제 대신 목록에서만 숨김 (되돌리기 가능).
+  isHidden?: 0 | 1;
 }
 
 export interface LineProgress {
