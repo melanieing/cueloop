@@ -7,7 +7,7 @@ import { useActiveTabContent } from '@/src/hooks/useActiveTabContent';
 import { db, type Content } from '@/src/db';
 import type { CueloopMessage } from '@/src/messages';
 import { broadcastContentUpdate } from '@/src/lib/broadcastUpdate';
-import { todayKey, getOrCreateTodayGoal } from '@/src/lib/dailyGoal';
+import { todayKey, readTodayGoal } from '@/src/lib/dailyGoal';
 import { LineRow, TrashIcon } from './LineRow';
 import { InsertLineModal } from './InsertLineModal';
 import { CustomLoopList } from './CustomLoopList';
@@ -38,6 +38,14 @@ async function loadStreak(): Promise<Streak> {
   const fresh: Streak = { id: 1, currentStreak: 0, longestStreak: 0 };
   await db.settings.put({ key: SETTING_STREAK_KEY, value: fresh });
   return fresh;
+}
+
+// 읽기 전용 — useLiveQuery에서 쓰기가 일어나면 재실행 cascade로 render 폭주(흰 화면)
+// 가 나므로 표시용은 쓰기 없는 이 함수를 쓴다. 최초 생성은 maintainStreakSide(effect) 담당.
+async function loadStreakReadonly(): Promise<Streak> {
+  const row = await db.settings.get(SETTING_STREAK_KEY);
+  if (row) return row.value as Streak;
+  return { id: 1, currentStreak: 0, longestStreak: 0 };
 }
 
 async function maintainStreakSide(): Promise<Streak> {
@@ -160,12 +168,13 @@ export default function App() {
 
   // 진도/스트릭 — popup이 더 이상 안 열리므로 사이드패널이 책임.
   // 모달 열렸을 때만 query (성능 + 무한 re-subscribe 방지). 닫혀있으면 fetch 안 함.
+  // 둘 다 읽기 전용 — useLiveQuery 콜백에서 DB 쓰면 재실행 cascade로 흰 화면 발생.
   const todayGoal = useLiveQuery(
-    async () => (progressOpen ? getOrCreateTodayGoal() : undefined),
+    async () => (progressOpen ? readTodayGoal() : undefined),
     [progressOpen],
   );
   // streak는 헤더 버튼에 항상 숫자 표시해야 하므로 항상 fetch
-  const streak = useLiveQuery(async () => loadStreak(), []);
+  const streak = useLiveQuery(async () => loadStreakReadonly(), []);
 
   // mount 시 maintainStreak (popup이 했던 safety bump 역할 인수)
   useEffect(() => {

@@ -25,6 +25,27 @@ async function loadTargets(): Promise<{ targetMinutes: number; targetListens: nu
   };
 }
 
+/**
+ * 읽기 전용 — 오늘 목표를 조회만 한다 (DB 쓰기 없음).
+ * useLiveQuery 안에서 쓰면 재실행 cascade로 render 폭주가 나므로,
+ * 표시용(사이드패널 진도 모달)은 반드시 이 함수를 쓴다.
+ * 실제 row 생성/갱신은 SESSION_TICK(background)·옵션 페이지·mount effect가 담당.
+ */
+export async function readTodayGoal(): Promise<DailyGoal> {
+  const date = todayKey();
+  const existing = await db.dailyGoals.get(date);
+  if (existing) return existing;
+  const { targetMinutes, targetListens } = await loadTargets();
+  return {
+    date,
+    targetMinutes,
+    targetListens,
+    achievedMinutes: 0,
+    achievedListens: 0,
+    completed: 0,
+  };
+}
+
 export async function getOrCreateTodayGoal(): Promise<DailyGoal> {
   const date = todayKey();
   const { targetMinutes, targetListens } = await loadTargets();
