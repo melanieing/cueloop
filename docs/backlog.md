@@ -4,8 +4,8 @@
 
 ## 현재 상태
 
-- **단계**: v0.2 / **🎉 Web Store 게시 완료 (2026-05-30)** — Phase 1 무료 출시 시작. v0.2.1 후속 변경 다수 누적 → 업데이트로 푸시 예정.
-- **마지막 업데이트**: 2026-05-30
+- **단계**: v0.2 / **Web Store Phase 1 운영 중**. v0.2.0 게시(2026-05-30) → **v0.2.1 업데이트 제출(2026-06-01), 심사 대기**. 통과 시 기존 사용자에게 자동 업데이트.
+- **마지막 업데이트**: 2026-06-01
 - **빌드 산출물**: `.output/chrome-mv3/` (production 빌드). dev watch는 WSL에서 작동 안 함 ([troubleshooting #5](./troubleshooting.md))
 - **핵심 차별점 (2가지)**:
   - CustomLoop (임의 A-B 구간 반복) — Day 2 schema 반영, Day 6 구현
@@ -232,7 +232,10 @@ v0.3에서 음성 인식 발화 검증과 함께 통합 검토.
   3. 정식 버전 옵션 페이지에서 "📤 백업 불러오기" → 동일 JSON 선택 → 복원
   4. 동작 확인 후 unpacked 버전 제거 (선택)
   - ⚠ unpacked 확장 ID(`abjpdggoimiioglekbiofbijbmjkikpp` 아님 / 그 ID는 정식 버전. unpacked는 임시 hash)와 정식 버전 ID가 다른 origin이라 IndexedDB 분리됨
-- [ ] **v0.2.1 후속 업데이트 푸시** — `package.json` 0.2.0 → 0.2.1 bump + `pnpm zip` + Web Store devconsole에서 새 패키지 업로드. 심사 통과 후 자동 업데이트로 사용자 환경에 반영. 누적 변경 목록은 아래 참조.
+- [x] **v0.2.1 후속 업데이트 제출 완료 (2026-06-01)** — package.json 0.2.0 → 0.2.1, zip 업로드, 검토용 제출. 권한 변경 없음(content_scripts matches만 /watch/* → /* 확장, host_permissions 동일). 심사 통과 후 자동 업데이트.
+  - 포함: 라인 단일/일괄 삭제, 콘텐츠 삭제, ⚠검토/★중요 마크+필터, E·SPACE 단축키, ⏱지금 시각 픽커, 라인 시각 편집, 사이드패널 단축키/진도 모달, 브라우즈 hover ingest 차단, EditRow 높이↑, 다른 창 반복 유지
+  - **출시 후 발견 2버그 fix 포함**: SPA 진입 시 overlay 미주입(overlay 스크립트 netflix.com/* 전체 매칭 + anchor 가드) + 🔥 첫 클릭 흰화면(useLiveQuery 순수 읽기 전환)
+- [ ] **v0.2.1 심사 통과 대기** (1-3일)
 - [ ] 본인 + 가까운 1-2명에게 Web Store 링크 공유, 첫 실사용 피드백 수집
 - [ ] 매주 사용자 수 + 평점 + 리뷰 체크 (Web Store 개발자 콘솔)
 - [ ] Netflix DOM 변경 발생 시 핫픽스 시간 트래킹 (목표: 48시간 내)

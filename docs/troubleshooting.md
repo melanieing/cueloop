@@ -665,3 +665,31 @@ if (currentMovieId !== detail.movieId) {
 - "Purple Potassium"은 unused permissions 위반의 CWS 내부 코드명. 같은 violation code가 나오면 같은 종류의 문제 — 권한 감사 우선.
 
 ---
+
+### #26. 출시 후 2버그 — SPA 진입 시 overlay 미주입 + 🔥 첫 클릭 흰화면
+
+**증상** (v0.2.0 게시 직후, 2026-05-30~06-01): 둘 다 "첫 로드 때 깨지고 새로고침/재생 후엔 정상" 패턴.
+1. Netflix 브라우즈에서 썸네일 클릭 → watch 진입 시, 새로고침 안 하면 우리 자막이 안 뜨고 Netflix 기본 자막이 나옴 + 자동 스크롤도 안 됨. 새로고침하면 정상.
+2. 사이드패널 열자마자(영상 재생 전) 🔥 진도 버튼 클릭 → 사이드패널 전체가 흰 화면. 영상 조금 재생 후 누르면 정상.
+
+**원인 1 — SPA 네비게이션 + content script 매칭 범위**:
+- overlay content script가 `matches: ['https://*.netflix.com/watch/*']`로 /watch/에만 매칭됨.
+- Netflix는 SPA. 브라우즈 → /watch/ 이동이 `history.pushState` 기반 클라이언트 네비게이션이고, **Chrome MV3는 SPA 네비게이션 시 content script를 재주입하지 않음**.
+- 그래서 /watch/에만 매칭된 overlay(자막 렌더 + Netflix 자막 hider + 자동 스크롤 전부 포함)가 첫 진입 시 안 돎. 풀 리로드(새로고침)해야 주입됨.
+- inject/content 스크립트는 `netflix.com/*` 전체 매칭이라 영향 없었음 → overlay만 깨진 이유.
+
+**해결 1**: overlay도 `matches: ['https://*.netflix.com/*']` 전체 매칭으로. 대신 `createShadowRootUi`의 `anchor`를 함수로 바꿔 `/watch/`일 때만 `<video>` 반환, 그 외엔 null. autoMount의 MutationObserver가 SPA 진입(video 등장)을 감지해 마운트, /watch/를 떠나면 unmount. 브라우즈 hover 미리보기 video는 path가 /watch/ 아니라 무시됨. (host_permissions는 그대로 netflix.com이라 권한 변경 아님 — 가벼운 재심사.)
+
+**원인 2 — useLiveQuery 콜백 안에서 DB 쓰기**:
+- 사이드패널 진도 모달의 `todayGoal` liveQuery가 `getOrCreateTodayGoal()` 호출 → 오늘 dailyGoals row 없으면 `db.dailyGoals.put`으로 **씀**.
+- dexie `useLiveQuery`는 읽은 테이블이 바뀌면 재실행. 콜백 안에서 그 테이블에 쓰니 재실행 cascade → React render 폭주 → 흰 화면.
+- 영상 재생 후엔 SESSION_TICK이 이미 row를 만들어둬서 put이 안 일어남 → 안전. "처음에만" 터진 이유.
+
+**해결 2**: liveQuery는 순수 읽기로. `readTodayGoal()`(dailyGoal.ts, 쓰기 없음) + `loadStreakReadonly()`(사이드패널) 추가하고 표시용 liveQuery 둘 다 교체. 실제 row 생성/갱신은 기존 쓰기 경로(SESSION_TICK background, 옵션 페이지 setSetting, maintainStreakSide mount effect)가 그대로 담당하므로 영속성 변화 없음.
+
+**교훈**:
+- **MV3 + SPA**: content script가 특정 경로에만 매칭되면 SPA 클라이언트 네비게이션으로 그 경로에 들어갈 때 주입 안 됨. SPA 사이트에선 넓게 매칭하고 anchor/로직에서 가드. (inject/content가 전체 매칭이라 안 깨진 게 힌트였음.)
+- **useLiveQuery 콜백은 순수 읽기여야 함**. 안에서 쓰면 재실행 cascade → 흰 화면. 쓰기는 effect/이벤트 핸들러/background로 분리. dexie-react-hooks 공식 권고사항이기도 함.
+- 두 버그 모두 "첫 로드만 깨지고 이후 정상" 패턴 → 초기화 타이밍/주입 race 의심 신호.
+
+---
