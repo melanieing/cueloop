@@ -4,8 +4,8 @@
 
 ## 현재 상태
 
-- **단계**: v0.2 / **🚀 Web Store 심사 대기 중** (Phase 1). 1차 제출 → UX 개선 재제출 → 콘텐츠/FAQ 보강 재제출 → CWS 거절 (사용하지 않는 storage 권한) → 권한·dead-code 정리 후 4차 제출(2026-05-29). 동시에 v0.2.1 후속 변경 다수 누적 중.
-- **마지막 업데이트**: 2026-05-29
+- **단계**: v0.2 / **🎉 Web Store 게시 완료 (2026-05-30)** — Phase 1 무료 출시 시작. v0.2.1 후속 변경 다수 누적 → 업데이트로 푸시 예정.
+- **마지막 업데이트**: 2026-05-30
 - **빌드 산출물**: `.output/chrome-mv3/` (production 빌드). dev watch는 WSL에서 작동 안 함 ([troubleshooting #5](./troubleshooting.md))
 - **핵심 차별점 (2가지)**:
   - CustomLoop (임의 A-B 구간 반복) — Day 2 schema 반영, Day 6 구현
@@ -222,8 +222,20 @@ v0.3에서 음성 인식 발화 검증과 함께 통합 검토.
   - `action.default_title` 명시 (popup 없어진 후 action field 자체 사라지지 않도록 — chrome.action.setBadgeText 동작 유지)
   - listing form용 영문 권한 정당화 + Single purpose + Data usage 답변 영문화 (`docs/WEB_STORE_LISTING.md`)
   - 다른 권한(sidePanel/alarms/notifications/host_permissions) 모두 사용처 grep으로 검증
-- [ ] **심사 통과 대기** (이후 v0.2.1 후속 업데이트로 누적 변경 출시)
-- [ ] 출시 후 첫 사용자 인지 — 본인 + 가까운 1-2명에게 공유
+- [x] **3차 제출 + 게시 통과 (2026-05-30)** 🎉
+
+## Phase 1 출시 직후 다음 작업 (Active)
+
+- [ ] **본인 unpacked → 정식 버전 데이터 이전** (가장 먼저!):
+  1. unpacked 옵션 페이지에서 "📥 백업 내보내기" → 안전한 곳(드라이브/USB)에 JSON 보관
+  2. Web Store에서 Cueloop 정식 버전 설치
+  3. 정식 버전 옵션 페이지에서 "📤 백업 불러오기" → 동일 JSON 선택 → 복원
+  4. 동작 확인 후 unpacked 버전 제거 (선택)
+  - ⚠ unpacked 확장 ID(`abjpdggoimiioglekbiofbijbmjkikpp` 아님 / 그 ID는 정식 버전. unpacked는 임시 hash)와 정식 버전 ID가 다른 origin이라 IndexedDB 분리됨
+- [ ] **v0.2.1 후속 업데이트 푸시** — `package.json` 0.2.0 → 0.2.1 bump + `pnpm zip` + Web Store devconsole에서 새 패키지 업로드. 심사 통과 후 자동 업데이트로 사용자 환경에 반영. 누적 변경 목록은 아래 참조.
+- [ ] 본인 + 가까운 1-2명에게 Web Store 링크 공유, 첫 실사용 피드백 수집
+- [ ] 매주 사용자 수 + 평점 + 리뷰 체크 (Web Store 개발자 콘솔)
+- [ ] Netflix DOM 변경 발생 시 핫픽스 시간 트래킹 (목표: 48시간 내)
 
 v0.2.1 후속 업데이트 누적 변경 (심사 통과 후 `package.json` 0.2.0 → 0.2.1 + zip 재업로드):
 - 라인 단일 삭제 (hover SVG trash + in-page confirm) + 다중 선택 모드 (📋 → "여러 줄 삭제") + 일괄 삭제 후 자동 종료
