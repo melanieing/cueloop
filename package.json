@@ -2,7 +2,7 @@
   "name": "cueloop",
   "description": "Netflix 시청 중 듀얼 자막·A-B 반복·100회 카운터로 100LS 학습법을 자동화",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "scripts": {
     "dev": "wxt",
