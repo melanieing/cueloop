@@ -27,6 +27,7 @@ Cueloop이 사용자의 브라우저 IndexedDB에 **로컬로** 저장하는 데
 - **분석/트래킹 도구**: 없음 (Google Analytics, Sentry, Mixpanel 등 모두 사용 안 함).
 - **광고 네트워크**: 없음.
 - **클라우드 동기화**: v0.2에서 제공 안 함. 사용자가 직접 "백업 내보내기"로 JSON 파일을 다운로드해서 다른 기기로 옮길 수 있음.
+- **백업·자막 공유 파일**: "백업 내보내기"와 "자막 공유본 내보내기"는 사용자가 직접 실행할 때만 로컬에 JSON 파일을 생성합니다. 이 파일을 어디에 보관하거나 누구와 공유할지는 전적으로 사용자가 결정하며, 확장 프로그램이 자동으로 어디에도 전송하지 않습니다.
 
 ### 4. 권한별 사용 목적
 
@@ -83,6 +84,7 @@ Cueloop stores the following data **locally** in the user's browser IndexedDB:
 - **Analytics/tracking tools**: None (no Google Analytics, Sentry, Mixpanel, etc.).
 - **Ad networks**: None.
 - **Cloud sync**: Not provided in v0.2. Users may export a JSON backup file to manually transfer between devices.
+- **Backup & subtitle-share files**: "Export backup" and "Export subtitle share" create a JSON file locally only when the user runs them. Where to keep that file and whom to share it with is entirely the user's decision; the extension never transmits it anywhere automatically.
 
 ### 4. Permissions Justification
 

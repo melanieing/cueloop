@@ -6,17 +6,19 @@
 
 - **학습법**: 100LS (One Hundred Listening & Speaking) — 같은 영화 콘텐츠를 100번 듣고 따라 말하는 학습법 (장동완 『9등급 꼴찌, 1년 만에 통역사 된 비법』, 리더스북 2017)
 - **타겟**: 한국어 모어 화자가 영어를 학습하는 수요
-- **현재 단계**: v0.2 — Netflix 단일 플랫폼 + 본인 학습용 unpacked 확장
-- **추후**: v0.3 멀티 OTT 확장 (Coupang Play, TVING, Disney+) + Chrome Web Store 공개
+- **현재 단계**: v0.2 — Netflix 단일 플랫폼. **Chrome Web Store 게시 완료**(Item ID `abjpdggoimiioglekbiofbijbmjkikpp`), Phase 1 무료 운영 중. 진행 현황은 `docs/backlog.md` 참조.
+- **추후**: v0.3 멀티 OTT 확장 (Coupang Play, TVING, Disney+) + freemium 수익화 검토
 
-## 만드는 것 (v0.2 핵심 6대 기능)
+## 만드는 것 (v0.2 핵심 기능)
 
 1. Netflix 페이지에 자동 주입되는 듀얼 자막(영+한) 오버레이
-2. 자막 라인 클릭 → A-B 자동 반복 + 100LS 카운터
-3. 사용자가 한국어 자막을 직접 편집 (퀄리티 보장)
-4. 받아쓰기(Dictation) 모드
-5. 녹음(Shadowing) 모드 + 자가 평가
-6. 일일 목표 + 퀘스트 + 스트릭
+2. 자막 라인 클릭 → A-B 자동 반복 + 100LS 카운터 + 임의 구간 반복(CustomLoop)
+3. 사용자가 자막을 직접 편집·삽입·시각조정 (퀄리티 보장)
+4. 자막 라벨링/필터 (⚠검토 / ★중요 / ☑외움 / 🙈숨김) + 라인·콘텐츠 정리(삭제)
+5. 자막 공유 (영화 단위 자막만 export/import)
+6. 일일 목표 + 스트릭 + 백업/복원
+
+> ⚠ 초기 계획의 **받아쓰기(Dictation)·녹음(Shadowing) 모드는 v0.2에서 보류**(쓰기/녹음은 100LS '말하기' 본질과 거리가 있어 v0.3 음성인식 검증과 함께 재검토). 대신 자막 편집·라벨링·공유 쪽을 강화함. 상세는 docs/backlog.md.
 
 ## 의도적으로 안 만드는 것 (v0.2 스코프 밖)
 
