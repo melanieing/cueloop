@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type DailyGoal } from '@/src/db';
+import { db, type DailyGoal, type Content, type Line } from '@/src/db';
 import { todayKey } from '@/src/lib/dailyGoal';
+import { broadcastContentUpdate } from '@/src/lib/broadcastUpdate';
 
 const BACKUP_TABLES = [
   'contents',
@@ -82,6 +83,145 @@ async function importBackup(file: File): Promise<{ tableCounts: Record<string, n
   return { tableCounts };
 }
 
+// === 자막 공유 (Subtitle sharing) ===
+// 전체 백업과 다름: 영화 1편의 "자막 콘텐츠"만. 개인 데이터(반복횟수·외움/검토/중요/숨김 마크·
+// 일일목표·스트릭·세션·CustomLoop)는 전부 제외. 공유받은 사람이 자기 다른 영화 데이터를
+// 잃지 않도록 불러오기는 해당 영화만 추가/교체 (전체 덮어쓰기 아님).
+
+interface SubtitleShareLine {
+  seq: number;
+  startMs: number;
+  endMs: number;
+  textEn: string;
+  textKo: string;
+  note?: string;
+  source: 'platform' | 'user';
+  editedAt?: number;
+}
+
+interface SubtitleSharePayload {
+  app: 'cueloop-subtitles';
+  version: string;
+  exportedAt: string;
+  content: { platform: string; contentId: string; title: string };
+  lines: SubtitleShareLine[];
+}
+
+function sanitizeFileName(name: string): string {
+  return name.replace(/[\\/:*?"<>|]+/g, '_').replace(/\s+/g, ' ').trim().slice(0, 80);
+}
+
+async function exportSubtitleShare(contentDbId: number): Promise<string> {
+  const content = await db.contents.get(contentDbId);
+  if (!content) throw new Error('콘텐츠를 찾을 수 없습니다.');
+  const lines = await db.lines.where('contentId').equals(contentDbId).sortBy('seq');
+  const payload: SubtitleSharePayload = {
+    app: 'cueloop-subtitles',
+    version: '0.2.3',
+    exportedAt: new Date().toISOString(),
+    content: {
+      platform: content.platform,
+      contentId: content.contentId,
+      title: content.title,
+    },
+    // 자막·고친내용·메모만. 개인 마크/진도는 제외.
+    lines: lines.map((l) => ({
+      seq: l.seq,
+      startMs: l.startMs,
+      endMs: l.endMs,
+      textEn: l.textEn,
+      textKo: l.textKo,
+      note: l.note,
+      source: l.source,
+      editedAt: l.editedAt,
+    })),
+  };
+  const json = JSON.stringify(payload, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `cueloop-subtitles-${sanitizeFileName(content.title || content.contentId)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  return `${content.title} · ${lines.length}줄`;
+}
+
+// 파일을 파싱만 (불러오기 전 미리보기 + 기존 영화 존재 여부 판단)
+async function parseSubtitleShare(
+  file: File,
+): Promise<{ payload: SubtitleSharePayload; existing: Content | undefined }> {
+  const text = await file.text();
+  const data = JSON.parse(text) as Partial<SubtitleSharePayload>;
+  if (data.app !== 'cueloop-subtitles' || !data.content || !Array.isArray(data.lines)) {
+    throw new Error('Cueloop 자막 공유 파일이 아닙니다.');
+  }
+  const payload = data as SubtitleSharePayload;
+  const existing = await db.contents
+    .where('[platform+contentId]')
+    .equals([payload.content.platform, payload.content.contentId])
+    .first();
+  return { payload, existing };
+}
+
+async function importSubtitleShare(
+  payload: SubtitleSharePayload,
+): Promise<{ contentDbId: number; lineCount: number; replaced: boolean }> {
+  const { platform, contentId: natId, title } = payload.content;
+  let contentDbId = -1;
+  let replaced = false;
+  await db.transaction('rw', [db.contents, db.lines, db.lineProgress], async () => {
+    const existing = await db.contents
+      .where('[platform+contentId]')
+      .equals([platform, natId])
+      .first();
+    if (existing?.id != null) {
+      contentDbId = existing.id;
+      // 이 영화의 기존 라인 + 라인별 진도 제거 후 공유본으로 교체
+      const existingLines = await db.lines
+        .where('contentId')
+        .equals(contentDbId)
+        .toArray();
+      const ids = existingLines
+        .map((l) => l.id)
+        .filter((x): x is number => x != null);
+      if (ids.length > 0) {
+        await db.lineProgress.bulkDelete(ids);
+        replaced = true;
+      }
+      await db.lines.where('contentId').equals(contentDbId).delete();
+      // placeholder 제목이면 공유본 제목으로 갱신
+      const idLabel = `${platform === 'netflix' ? 'Netflix' : platform} ${natId}`;
+      if (existing.title === idLabel || existing.title === natId) {
+        await db.contents.update(contentDbId, { title });
+      }
+    } else {
+      contentDbId = (await db.contents.add({
+        platform: platform as Content['platform'],
+        contentId: natId,
+        title: title || `${platform} ${natId}`,
+        createdAt: Date.now(),
+      } as Content)) as number;
+    }
+    const rows: Omit<Line, 'id'>[] = payload.lines.map((l) => ({
+      contentId: contentDbId,
+      seq: l.seq ?? 0,
+      startMs: l.startMs,
+      endMs: l.endMs,
+      textEn: l.textEn ?? '',
+      textKo: l.textKo ?? '',
+      note: l.note,
+      source: l.source ?? 'platform',
+      editedAt: l.editedAt,
+    }));
+    await db.lines.bulkAdd(rows as Line[]);
+  });
+  broadcastContentUpdate(contentDbId);
+  return { contentDbId, lineCount: payload.lines.length, replaced };
+}
+
 export const SETTING_KEYS = {
   dailyTargetMinutes: 'dailyTargetMinutes',
   dailyTargetListens: 'dailyTargetListens',
@@ -119,6 +259,20 @@ export default function App() {
   const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
 
+  // 자막 공유
+  const [shareContentId, setShareContentId] = useState<number | ''>('');
+  const [shareStatus, setShareStatus] = useState<string | null>(null);
+  const [shareError, setShareError] = useState<string | null>(null);
+  const [pendingShareImport, setPendingShareImport] = useState<{
+    payload: SubtitleSharePayload;
+    existing: Content | undefined;
+  } | null>(null);
+  const [shareImporting, setShareImporting] = useState(false);
+
+  const contents = useLiveQuery(async () =>
+    db.contents.orderBy('createdAt').reverse().toArray(),
+  );
+
   const targetMinutes = useLiveQuery(async () => {
     const s = await db.settings.get(SETTING_KEYS.dailyTargetMinutes);
     return (s?.value as number | undefined) ?? DEFAULTS.dailyTargetMinutes;
@@ -127,6 +281,57 @@ export default function App() {
     const s = await db.settings.get(SETTING_KEYS.dailyTargetListens);
     return (s?.value as number | undefined) ?? DEFAULTS.dailyTargetListens;
   });
+
+  async function handleShareExport() {
+    setShareError(null);
+    setShareStatus(null);
+    if (shareContentId === '') {
+      setShareError('내보낼 영화를 먼저 선택하세요.');
+      return;
+    }
+    try {
+      const summary = await exportSubtitleShare(Number(shareContentId));
+      setShareStatus(`자막 공유본 다운로드 완료 — ${summary}`);
+      setTimeout(() => setShareStatus(null), 5000);
+    } catch (err) {
+      setShareError(String(err));
+    }
+  }
+
+  async function handleShareFilePick(e: React.ChangeEvent<HTMLInputElement>) {
+    setShareError(null);
+    setShareStatus(null);
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      const parsed = await parseSubtitleShare(file);
+      setPendingShareImport(parsed);
+    } catch (err) {
+      setShareError(`불러오기 실패: ${String(err)}`);
+    }
+  }
+
+  async function confirmShareImport() {
+    if (!pendingShareImport) return;
+    setShareImporting(true);
+    try {
+      const { lineCount, replaced } = await importSubtitleShare(
+        pendingShareImport.payload,
+      );
+      setShareStatus(
+        `자막 불러오기 완료 — "${pendingShareImport.payload.content.title}" ${lineCount}줄${
+          replaced ? ' (기존 자막 교체됨)' : ''
+        }`,
+      );
+      setPendingShareImport(null);
+    } catch (err) {
+      setShareError(`불러오기 실패: ${String(err)}`);
+      setPendingShareImport(null);
+    } finally {
+      setShareImporting(false);
+    }
+  }
 
   async function handleExport() {
     setBackupError(null);
@@ -399,6 +604,69 @@ export default function App() {
       </section>
 
       <section className="mb-10">
+        <h2 className="text-lg font-semibold mb-2">🔗 자막 공유</h2>
+        <p className="text-xs text-zinc-400 mb-5 leading-relaxed">
+          한 영화의 <strong>자막만</strong> JSON으로 내보내 다른 사람과 공유하거나,
+          공유받은 자막을 불러옵니다. 넷플릭스 자막 오류를 깔끔하게 고쳐서 나눠 쓰기 좋습니다.
+          <br />
+          전체 백업과 달리 <strong>자막 · 고친 내용 · 메모만</strong> 담기고, 반복 횟수·외움·검토·중요·숨김
+          마크·일일 목표·스트릭 같은 개인 데이터는 포함되지 않습니다. 불러올 땐 해당 영화만
+          추가/교체되고 다른 영화 데이터는 그대로 둡니다.
+        </p>
+
+        <div className="mb-4">
+          <label className="block text-xs text-zinc-300 font-medium mb-1.5">
+            내보낼 영화 선택
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <select
+              value={shareContentId}
+              onChange={(e) =>
+                setShareContentId(e.target.value === '' ? '' : Number(e.target.value))
+              }
+              className="flex-1 min-w-50 bg-zinc-900 border border-zinc-700 rounded px-2 py-2 text-sm text-zinc-100 focus:border-blue-500 focus:outline-none"
+            >
+              <option value="">— 영화 선택 —</option>
+              {(contents ?? []).map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.title}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => void handleShareExport()}
+              disabled={shareContentId === ''}
+              className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded cursor-pointer disabled:opacity-50 whitespace-nowrap"
+            >
+              📤 자막 공유본 내보내기
+            </button>
+          </div>
+        </div>
+
+        <label className="inline-block px-4 py-2 text-sm bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-100 rounded cursor-pointer">
+          📥 자막 공유본 불러오기...
+          <input
+            type="file"
+            accept="application/json,.json"
+            onChange={(e) => void handleShareFilePick(e)}
+            className="hidden"
+          />
+        </label>
+
+        {shareStatus && (
+          <div className="mt-3 text-xs text-emerald-300 bg-emerald-950/40 border border-emerald-900 rounded px-3 py-2">
+            ✓ {shareStatus}
+          </div>
+        )}
+        {shareError && (
+          <div className="mt-3 text-xs text-red-300 bg-red-950/40 border border-red-900 rounded px-3 py-2">
+            ⚠ {shareError}
+          </div>
+        )}
+      </section>
+
+      <section className="mb-10">
         <h2 className="text-lg font-semibold mb-3">❓ 자주 묻는 질문</h2>
         <div className="space-y-3">
           <details className="bg-zinc-900/60 border border-zinc-800 rounded p-3">
@@ -501,6 +769,66 @@ export default function App() {
                 className="px-4 py-2 text-sm bg-red-700 hover:bg-red-600 text-white rounded cursor-pointer disabled:opacity-50"
               >
                 {importing ? '복원 중...' : '복원 실행 (덮어쓰기)'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pendingShareImport && (
+        <div
+          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
+          onClick={() => !shareImporting && setPendingShareImport(null)}
+        >
+          <div
+            className="bg-zinc-900 border border-zinc-700 rounded-lg max-w-md w-full p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-base font-semibold mb-3">🔗 자막 공유본 불러오기</h3>
+            <p className="text-sm text-zinc-300 mb-2">
+              <span className="font-mono text-amber-300 break-all">
+                {pendingShareImport.payload.content.title}
+              </span>
+              <span className="text-zinc-500">
+                {' '}· {pendingShareImport.payload.lines.length}줄
+              </span>
+            </p>
+            {pendingShareImport.existing ? (
+              <p className="text-sm text-zinc-300 mb-4 leading-relaxed">
+                이미 가지고 있는 영화입니다. 불러오면{' '}
+                <strong className="text-amber-300">이 영화의 자막이 공유본으로 교체</strong>
+                되고, <strong className="text-red-400">이 영화의 라인별 진도(반복 횟수·외움
+                표시)는 초기화</strong>됩니다. 다른 영화 데이터는 영향받지 않습니다.
+              </p>
+            ) : (
+              <p className="text-sm text-zinc-300 mb-4 leading-relaxed">
+                새 영화로 추가됩니다. 기존 데이터에는 영향이 없습니다.
+              </p>
+            )}
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => setPendingShareImport(null)}
+                disabled={shareImporting}
+                className="px-4 py-2 text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded cursor-pointer disabled:opacity-50"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmShareImport()}
+                disabled={shareImporting}
+                className={`px-4 py-2 text-sm text-white rounded cursor-pointer disabled:opacity-50 ${
+                  pendingShareImport.existing
+                    ? 'bg-amber-700 hover:bg-amber-600'
+                    : 'bg-blue-600 hover:bg-blue-500'
+                }`}
+              >
+                {shareImporting
+                  ? '불러오는 중...'
+                  : pendingShareImport.existing
+                  ? '교체하고 불러오기'
+                  : '불러오기'}
               </button>
             </div>
           </div>

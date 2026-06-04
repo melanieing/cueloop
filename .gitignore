@@ -40,3 +40,6 @@ pnpm-debug.log*
 
 # TypeScript
 *.tsbuildinfo
+
+# 블로그 홍보글 초안 (개인 — 복사해서 블로그에 게시, 추적 안 함)
+docs/promo/
