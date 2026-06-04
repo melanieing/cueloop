@@ -109,6 +109,9 @@ pnpm tsc --noEmit # 타입 체크
 
 ### FAQ
 
+**Q. 새 영화를 켰는데 자막이 안 나오고 사이드패널이 이전 영화로 멈춰 있어요.**
+페이지를 한 번 **새로고침(F5)** 해보세요. Netflix는 페이지를 새로 불러오지 않고 화면만 바꾸는 방식(SPA)이라, 목록에서 영화로 들어갈 때 가끔 Cueloop이 새 영화를 제때 못 잡습니다. 새로고침하면 새 영화 자막을 정상 수집하고 사이드패널도 갱신됩니다.
+
 **Q. 콘텐츠를 어떻게 구분하나요? 같은 영화인데 진도가 0이 됐어요.**
 Cueloop은 Netflix 영상 고유 번호(`netflix.com/watch/70283145`의 숫자)로 콘텐츠를 구분합니다. 영화 1편·에피소드 1화마다 고유 번호가 있고, 시청목록에서 빼거나 복습으로 다시 봐도 번호는 안 바뀌어서 진도가 이어집니다. 단 Netflix 재계약·다른 국가 카탈로그·다른 버전(감독판 등)이면 번호가 달라질 수 있습니다 (드문 경우).
 
@@ -221,6 +224,9 @@ Build output lands in `.output/chrome-mv3/`. In Chrome, go to `chrome://extensio
 - **Messaging**: Chrome MV3 + typed discriminated unions
 
 ### FAQ
+
+**Q. I opened a new movie but no subtitles show and the side panel is stuck on the previous one.**
+Try **refreshing the page (F5)**. Netflix is a single-page app that swaps the screen without a full reload, so when you go from the list into a movie, Cueloop occasionally doesn't catch the new title in time. A refresh makes it capture the new movie's subtitles and updates the side panel.
 
 **Q. How are titles identified? My progress reset for the same movie.**
 Cueloop identifies content by Netflix's video ID (the number in `netflix.com/watch/70283145`). Each movie / episode has a unique number, and it doesn't change when you remove it from My List or rewatch — so progress carries over. It *can* differ if Netflix re-licenses the content, or across regional catalogs / different versions (director's cut, etc.) — rare cases.

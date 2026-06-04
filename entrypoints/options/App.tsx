@@ -383,7 +383,7 @@ export default function App() {
     <div className="min-h-screen bg-zinc-950 text-zinc-100 p-8 max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-2">Cueloop 설정</h1>
       <p className="text-sm text-zinc-500 mb-8">
-        v0.2 — 사용법 + 일일 목표 + 백업 / 복원
+        v0.2 — 사용법 + 일일 목표 + 자막 공유 + 백업 / 복원
       </p>
 
       <section className="mb-10">
@@ -439,9 +439,11 @@ export default function App() {
             {' '}로 라벨 저장.
           </li>
           <li>
-            <strong className="text-zinc-100">자막 편집</strong> — 사이드패널의
-            라인 텍스트를 클릭하면 편집 모드로 진입. 영어/한국어/메모/시작
-            시각/종료 시각 모두 수정 가능.{' '}
+            <strong className="text-zinc-100">자막 편집·시각 조정</strong> —
+            사이드패널의 라인 텍스트를 클릭하면 편집 모드로 진입. 영어/한국어/메모/시작
+            시각/종료 시각 모두 수정 가능. 시각 칸 옆의{' '}
+            <span className="px-1 py-0.5 bg-blue-950/40 border border-blue-800 rounded text-xs text-blue-200">⏱ 지금</span>
+            {' '}버튼을 누르면 지금 영상이 멈춰 있는 시점의 시각이 그대로 입력됩니다.{' '}
             <kbd className="px-1.5 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-xs font-mono">
               Ctrl+Enter
             </kbd>
@@ -449,13 +451,35 @@ export default function App() {
             <kbd className="px-1.5 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-xs font-mono">
               Esc
             </kbd>
-            {' '}취소.
+            {' '}취소. 헤더{' '}
+            <span className="px-1 py-0.5 bg-blue-950/40 border border-blue-800 rounded text-xs text-blue-200">+ 새 라인</span>
+            {' '}으로 놓친 대사를 추가할 수도 있습니다.
           </li>
           <li>
-            <strong className="text-zinc-100">외움 처리</strong> — 라인의{' '}
-            <span className="text-emerald-300">☐</span> 체크박스로 외움 토글.
-            30회 이상 들은 라인은{' '}
-            <span className="text-amber-300">✨ 외움?</span> 후보로 자동 강조됩니다.
+            <strong className="text-zinc-100">라인 마크 &amp; 필터</strong> — 각
+            라인 우측 아이콘으로 네 가지 마크를 토글합니다:{' '}
+            <span className="text-emerald-300">☐ 외움</span>(충분히 들음 — 30회 이상이면{' '}
+            <span className="text-amber-300">✨ 외움?</span> 후보로 강조),{' '}
+            <span className="text-amber-400">⚠ 검토</span>(자막이 정확히 안 들림),{' '}
+            <span className="text-sky-400">★ 중요</span>(몰랐던 표현),{' '}
+            <span className="text-zinc-300">🙈 숨김</span>(노래 가사 등 — 삭제 아니라
+            목록에서만 치움). 헤더의 각 토글(외움 N · ⚠검토 N · ★중요 N · 🙈숨김 N)로
+            해당 마크만 모아 볼 수 있습니다.
+          </li>
+          <li>
+            <strong className="text-zinc-100">라인·콘텐츠 정리</strong> — 라인에
+            마우스를 올리면 나오는 휴지통으로 한 줄 삭제. 헤더{' '}
+            <span className="px-1 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-xs">☑ 여러 줄 선택</span>
+            {' '}모드로 여러 라인을 골라 <strong>일괄 숨김 또는 삭제</strong>. 드롭다운 옆
+            휴지통으로는 영화 한 편 전체(자막·진도 포함)를 정리할 수 있습니다.
+          </li>
+          <li>
+            <strong className="text-zinc-100">자막 공유</strong> — 깔끔하게 고친
+            자막을 다른 사람과 나눌 수 있습니다. 이 옵션 페이지 아래{' '}
+            <span className="px-1 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-xs">🔗 자막 공유</span>
+            {' '}에서 영화를 골라 자막만(고친 내용·메모 포함, 개인 진도 제외) 내보내거나,
+            공유받은 파일을 불러옵니다. 불러오기는 그 영화만 추가/교체하고 다른 영화는
+            건드리지 않습니다.
           </li>
           <li>
             <strong className="text-zinc-100">일일 목표 + 스트릭</strong> —
@@ -669,6 +693,23 @@ export default function App() {
       <section className="mb-10">
         <h2 className="text-lg font-semibold mb-3">❓ 자주 묻는 질문</h2>
         <div className="space-y-3">
+          <details className="bg-zinc-900/60 border border-zinc-800 rounded p-3" open>
+            <summary className="text-sm font-medium text-zinc-200 cursor-pointer">
+              새 영화를 켰는데 자막이 안 나오고 사이드패널이 이전 영화로 멈춰 있어요.
+            </summary>
+            <div className="text-xs text-zinc-400 mt-2 leading-relaxed space-y-2">
+              <p>
+                <strong className="text-zinc-200">페이지를 한 번 새로고침(F5 또는 Ctrl+R)
+                해보세요.</strong> 대부분 바로 해결됩니다.
+              </p>
+              <p>
+                Netflix는 페이지를 새로 불러오지 않고 화면만 바꾸는 방식(SPA)이라,
+                목록에서 영화로 들어갈 때 가끔 Cueloop이 새 영화를 제때 못 잡는
+                경우가 있습니다. 이때 새로고침하면 새 영화의 자막을 정상적으로
+                수집하고 사이드패널도 그 영화로 갱신됩니다.
+              </p>
+            </div>
+          </details>
           <details className="bg-zinc-900/60 border border-zinc-800 rounded p-3">
             <summary className="text-sm font-medium text-zinc-200 cursor-pointer">
               콘텐츠를 어떻게 구분하나요? 같은 영화인데 진도가 0이 됐어요.
