@@ -198,11 +198,12 @@ export function InsertLineModal({ contentId, defaultStartMs, defaultEndMs, onClo
         <label className="block text-[10px] uppercase tracking-wide text-zinc-500 mb-1">
           메모 (옵션)
         </label>
-        <input
-          type="text"
+        <textarea
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          className="w-full bg-zinc-950 text-zinc-100 text-sm rounded px-2 py-1.5 border border-zinc-700 focus:border-blue-500 focus:outline-none"
+          className="w-full bg-zinc-950 text-zinc-100 text-sm rounded px-2 py-1.5 border border-zinc-700 focus:border-blue-500 focus:outline-none resize-y min-h-12"
+          rows={2}
+          placeholder="단어 뜻, 발음 팁, 학습 메모..."
         />
 
         {error && (

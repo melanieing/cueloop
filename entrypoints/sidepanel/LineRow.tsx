@@ -18,6 +18,20 @@ export function TrashIcon({ className }: { className?: string }) {
   );
 }
 
+// 라인 복사(분할) 아이콘 — 겹친 사각형(duplicate)
+export function DuplicateIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M16 1H4a2 2 0 0 0-2 2v12h2V3h12V1Zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Zm0 16H8V7h11v14Z" />
+    </svg>
+  );
+}
+
 // 눈 가림(hide) 아이콘 — 목록에서 숨김 토글용 (TrashIcon과 동일하게 SVG로 통일)
 export function EyeOffIcon({ className }: { className?: string }) {
   return (
@@ -109,6 +123,7 @@ function LineRowImpl({
   onLoop,
   onStopRepeat,
   onDelete,
+  onDuplicate,
   progress,
   isCurrent,
   isRepeating,
@@ -125,6 +140,7 @@ function LineRowImpl({
   onLoop: (lineId: number) => void;
   onStopRepeat: () => void;
   onDelete: (lineId: number, preview: string, contentId: number) => void;
+  onDuplicate: (line: Line) => void;
   progress?: LineProgress;
   isCurrent?: boolean;
   isRepeating?: boolean;
@@ -152,6 +168,7 @@ function LineRowImpl({
         onLoop={onLoop}
         onStopRepeat={onStopRepeat}
         onDelete={onDelete}
+        onDuplicate={onDuplicate}
         progress={progress}
         isCurrent={isCurrent}
         isRepeating={isRepeating}
@@ -178,6 +195,7 @@ export const LineRow = memo(LineRowImpl, (prev, next) => {
     prev.onLoop === next.onLoop &&
     prev.onStopRepeat === next.onStopRepeat &&
     prev.onDelete === next.onDelete &&
+    prev.onDuplicate === next.onDuplicate &&
     prev.isCurrent === next.isCurrent &&
     prev.isRepeating === next.isRepeating &&
     prev.isEditing === next.isEditing &&
@@ -199,6 +217,7 @@ function ReadOnlyRow({
   onLoop,
   onStopRepeat,
   onDelete,
+  onDuplicate,
   progress,
   isCurrent,
   isRepeating,
@@ -212,6 +231,7 @@ function ReadOnlyRow({
   onLoop: (lineId: number) => void;
   onStopRepeat: () => void;
   onDelete: (lineId: number, preview: string, contentId: number) => void;
+  onDuplicate: (line: Line) => void;
   progress?: LineProgress;
   isCurrent?: boolean;
   isRepeating?: boolean;
@@ -409,6 +429,20 @@ function ReadOnlyRow({
             >
               ✎
             </span>
+          )}
+          {!selectionMode && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDuplicate(line);
+              }}
+              className="opacity-0 group-hover:opacity-70 hover:opacity-100! text-zinc-400 hover:text-blue-400 cursor-pointer transition-opacity p-0.5"
+              title="이 라인 복사 — 바로 아래에 같은 내용의 새 라인 생성 (라인 분할용)"
+              tabIndex={-1}
+            >
+              <DuplicateIcon className="w-4 h-4" />
+            </button>
           )}
           {!selectionMode && (
             <button

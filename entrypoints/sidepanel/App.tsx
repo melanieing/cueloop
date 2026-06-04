@@ -4,7 +4,7 @@ import { useContents } from '@/src/hooks/useContents';
 import { useLines } from '@/src/hooks/useLines';
 import { useLineProgressMap } from '@/src/hooks/useLineProgressMap';
 import { useActiveTabContent } from '@/src/hooks/useActiveTabContent';
-import { db, type Content } from '@/src/db';
+import { db, type Content, type Line } from '@/src/db';
 import type { CueloopMessage } from '@/src/messages';
 import { broadcastContentUpdate } from '@/src/lib/broadcastUpdate';
 import { todayKey, readTodayGoal } from '@/src/lib/dailyGoal';
@@ -311,6 +311,30 @@ export default function App() {
       await browser.runtime.sendMessage(msg);
     } catch (err) {
       setJumpError(String(err));
+      setTimeout(() => setJumpError(null), 4000);
+    }
+  }, []);
+
+  // 라인 복사 — 바로 아래에 같은 내용의 새 라인 생성 (라인 분할용).
+  // 시작=원본 종료, 종료=원본 종료+1분. 내용(영/한/메모)만 복사, source='user'.
+  // 마크(외움/중요/검토/숨김)·반복 횟수는 복사 안 함 (새 라인은 진도 0).
+  const handleDuplicate = useCallback(async (line: Line) => {
+    const newLine: Omit<Line, 'id'> = {
+      contentId: line.contentId,
+      seq: line.seq,
+      startMs: line.endMs,
+      endMs: line.endMs + 60000,
+      textEn: line.textEn,
+      textKo: line.textKo,
+      note: line.note,
+      source: 'user',
+      editedAt: Date.now(),
+    };
+    try {
+      await db.lines.add(newLine as Line);
+      broadcastContentUpdate(line.contentId);
+    } catch (err) {
+      setJumpError(`라인 복사 실패: ${String(err)}`);
       setTimeout(() => setJumpError(null), 4000);
     }
   }, []);
@@ -1191,6 +1215,7 @@ export default function App() {
                 onLoop={handleLoop}
                 onStopRepeat={handleStopRepeat}
                 onDelete={requestDeleteLine}
+                onDuplicate={handleDuplicate}
                 progress={line.id != null ? progressMap.get(line.id) : undefined}
                 isCurrent={line.id === currentLineId}
                 isRepeating={line.id === repeatingLineId}
