@@ -453,7 +453,9 @@ export default function App() {
             </kbd>
             {' '}취소. 헤더{' '}
             <span className="px-1 py-0.5 bg-blue-950/40 border border-blue-800 rounded text-xs text-blue-200">+ 새 라인</span>
-            {' '}으로 놓친 대사를 추가할 수도 있습니다.
+            {' '}으로 놓친 대사를 추가하거나, 라인에 마우스를 올렸을 때 나오는{' '}
+            <span className="text-blue-300">복사</span> 버튼으로 한 라인을 둘로 쪼갤 수도 있습니다
+            (바로 아래에 같은 내용의 새 라인 생성).
           </li>
           <li>
             <strong className="text-zinc-100">라인 마크 &amp; 필터</strong> — 각

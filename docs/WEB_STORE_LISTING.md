@@ -63,7 +63,7 @@ Cueloop은 영화 한 편을 100번 반복 듣고 따라 말하는 학습법(100
 A 키로 시작, B 키로 끝 마킹. 자막 cue 경계에 묶이지 않고 사용자가 원하는 어떤 구간이든 반복 가능. S 키로 라벨 저장.
 
 ✎ 자막 편집·삽입·시각 조정
-Netflix 자막에 오류가 있으면 사이드 패널에서 직접 수정할 수 있습니다. 영어/한국어/메모/시작 시각/종료 시각 모두 편집 가능. ⏱ "지금" 버튼으로 영상의 현재 재생 시각을 input에 한 번에 채워 넣을 수 있어서 정확한 구간을 만들기 편합니다. 누락된 대사도 새 라인으로 추가.
+Netflix 자막에 오류가 있으면 사이드 패널에서 직접 수정할 수 있습니다. 영어/한국어/메모/시작 시각/종료 시각 모두 편집 가능. ⏱ "지금" 버튼으로 영상의 현재 재생 시각을 input에 한 번에 채워 넣을 수 있어서 정확한 구간을 만들기 편합니다. 누락된 대사도 새 라인으로 추가. 한 라인을 둘로 쪼개고 싶을 땐 라인 복사 버튼으로 바로 아래에 같은 내용의 새 라인을 만들어 나눌 수 있습니다.
 
 🎯 자막 라벨링·필터
 - ⚠ 검토: 정확히 들리지 않는 자막에 마크하고 나중에 한꺼번에 보기
@@ -144,7 +144,7 @@ Click any subtitle line to auto-repeat just that segment. Listen counts are trac
 Press A to mark the start, B to mark the end. Repeat any segment you want — not tied to subtitle cue boundaries. Press S to save a label.
 
 ✎ Subtitle Editing, Insertion & Timing
-Fix Netflix subtitle errors directly in the side panel. Edit English / Korean / note / start time / end time. The ⏱ "Now" buttons paste the video's current playback time straight into the start/end inputs so dialing in a precise repeat range is one click. Insert missing lines too.
+Fix Netflix subtitle errors directly in the side panel. Edit English / Korean / note / start time / end time. The ⏱ "Now" buttons paste the video's current playback time straight into the start/end inputs so dialing in a precise repeat range is one click. Insert missing lines too. To split one line into two, the line-duplicate button drops a copy right below so you can divide it up.
 
 🎯 Line Labeling & Filters
 - ⚠ Review: mark a line whose subtitle you can't make out, revisit them later
