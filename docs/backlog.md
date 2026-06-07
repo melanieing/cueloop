@@ -254,6 +254,16 @@ v0.2.1을 심사 중 취소하고 아래 hide 기능을 더해 0.2.2로 bump →
 - [x] InsertLineModal(새 라인 추가) 메모 input → textarea (EditRow와 통일)
 - [ ] **v0.2.4 심사 통과 대기**
 - [ ] 본인 + 가까운 1-2명에게 Web Store 링크 공유, 첫 실사용 피드백 수집
+
+## v0.2.5 누적 (v0.2.4 게시 후 다음 업데이트로 묶음)
+- [x] 전역 ON/OFF 토글 — 영상 컨트롤바 우측(body fixed, 전체화면 re-parent)에 🎬 Cueloop ON/OFF 버튼. 끄면 자막 hider/오버레이/단축키/rAF 전부 정지 → 그냥 넷플릭스. chrome.storage.local에 상태 저장(= storage 권한 실제 사용). 자막 ingest는 계속.
+- [x] 자막 표시 순서 (Phase 1) — 옵션 "🔤 자막 표시 순서"에서 영어 위/한국어 위 선택. 위=주(흰색 큼)/아래=보조(amber 작음). 오버레이+사이드패널 반영. chrome.storage.local + onChanged 실시간 동기화.
+- [ ] **v0.2.5 제출 대기** — v0.2.4 통과 후 bump+zip. ⚠ storage 권한 추가됨(이번엔 실사용) → 권한 변경 심사 주의.
+
+## v0.3 후보 — 자막 다국어 (Phase 2, 큰 작업)
+- 현재 데이터가 `Line.textEn`/`textKo` 2칸 하드코딩 → 일본어·중국어 등 임의 언어는 구조 변경 필요.
+- 필요: 언어별 저장(`texts` 맵 or 별도 테이블) + Dexie 마이그레이션(textEn→en, textKo→ko, 게시 사용자 데이터 보존) + 수집 로직(콘텐츠 제공 전 언어 캡처) + 사이드패널 per-content 언어 선택(상/하 드롭다운, 그 콘텐츠 제공 언어로) + 옵션 전역 기본값 + 오버레이/편집/자막공유 포맷 전부 다국어 대응.
+- 설정 위치 합의: 사이드패널 헤더(per-content) + 옵션(전역 기본값).
 - [ ] 매주 사용자 수 + 평점 + 리뷰 체크 (Web Store 개발자 콘솔)
 - [ ] Netflix DOM 변경 발생 시 핫픽스 시간 트래킹 (목표: 48시간 내)
 

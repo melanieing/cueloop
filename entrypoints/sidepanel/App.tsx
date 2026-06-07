@@ -8,6 +8,11 @@ import { db, type Content, type Line } from '@/src/db';
 import type { CueloopMessage } from '@/src/messages';
 import { broadcastContentUpdate } from '@/src/lib/broadcastUpdate';
 import { todayKey, readTodayGoal } from '@/src/lib/dailyGoal';
+import {
+  getSubtitleOrder,
+  onSubtitleOrderChange,
+  type SubtitleOrder,
+} from '@/src/lib/subtitleOrder';
 import { LineRow, TrashIcon, EyeOffIcon } from './LineRow';
 import { InsertLineModal } from './InsertLineModal';
 import { CustomLoopList } from './CustomLoopList';
@@ -147,6 +152,19 @@ export default function App() {
   const [showOnlyNeedsReview, setShowOnlyNeedsReview] = useState(false);
   const [showOnlyStarred, setShowOnlyStarred] = useState(false);
   const [showHidden, setShowHidden] = useState(false);
+  const [subtitleOrder, setSubtitleOrder] = useState<SubtitleOrder>('en-top');
+
+  useEffect(() => {
+    let alive = true;
+    void getSubtitleOrder().then((v) => {
+      if (alive) setSubtitleOrder(v);
+    });
+    const off = onSubtitleOrderChange((v) => setSubtitleOrder(v));
+    return () => {
+      alive = false;
+      off();
+    };
+  }, []);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
   const [progressOpen, setProgressOpen] = useState(false);
@@ -1222,6 +1240,7 @@ export default function App() {
                 isEditing={editingLineId === line.id}
                 onEditStart={handleEditStart}
                 onEditEnd={handleEditEnd}
+                koTop={subtitleOrder === 'ko-top'}
                 selectionMode={selectionMode}
                 isSelected={line.id != null && selectedLineIds.has(line.id)}
                 onSelectToggle={handleSelectToggle}

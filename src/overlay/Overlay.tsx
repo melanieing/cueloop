@@ -5,6 +5,11 @@ import {
   getOverlayEnabled,
   onOverlayEnabledChange,
 } from '@/src/lib/overlayEnabled';
+import {
+  getSubtitleOrder,
+  onSubtitleOrderChange,
+  type SubtitleOrder,
+} from '@/src/lib/subtitleOrder';
 
 interface OverlayProps {
   video: HTMLVideoElement;
@@ -196,6 +201,7 @@ export function Overlay({ video }: OverlayProps) {
   const [currentLine, setCurrentLine] = useState<Line | null>(null);
   const [showKorean, setShowKorean] = useState(true);
   const [showEnglish, setShowEnglish] = useState(true);
+  const [subtitleOrder, setSubtitleOrder] = useState<SubtitleOrder>('en-top');
   const [toastVisible, setToastVisible] = useState(false);
   const [toastText, setToastText] = useState('');
   const [repeating, setRepeating] = useState<Repeating | null>(null);
@@ -215,6 +221,19 @@ export function Overlay({ video }: OverlayProps) {
   useEffect(() => {
     injectNetflixSubtitleHider();
     return () => removeNetflixSubtitleHider();
+  }, []);
+
+  // 자막 표시 순서 (영어 위 / 한국어 위)
+  useEffect(() => {
+    let alive = true;
+    void getSubtitleOrder().then((v) => {
+      if (alive) setSubtitleOrder(v);
+    });
+    const off = onSubtitleOrderChange((v) => setSubtitleOrder(v));
+    return () => {
+      alive = false;
+      off();
+    };
   }, []);
 
   useEffect(() => {
@@ -717,35 +736,51 @@ export function Overlay({ video }: OverlayProps) {
             Cueloop · 자막 없음 (DB에 이 영화 데이터 없음)
           </div>
         ) : visible ? (
-          <>
-            {showEnglish && currentLine.textEn.trim() && (
-              <div
-                style={{
-                  color: '#ffffff',
-                  fontSize: '3.375rem',
-                  fontWeight: 700,
-                  lineHeight: 1.25,
-                  whiteSpace: 'pre-wrap',
-                  marginBottom: '0.5rem',
-                }}
-              >
-                {currentLine.textEn}
-              </div>
-            )}
-            {showKorean && currentLine.textKo.trim() && (
-              <div
-                style={{
-                  color: '#fde68a',
-                  fontSize: '2.625rem',
-                  fontWeight: 600,
-                  lineHeight: 1.25,
-                  whiteSpace: 'pre-wrap',
-                }}
-              >
-                {currentLine.textKo}
-              </div>
-            )}
-          </>
+          (() => {
+            // 위/아래에 어떤 언어를 둘지 — subtitleOrder 기준.
+            // 위(top)는 주 스타일(크고 흰색), 아래(bottom)는 보조(작고 amber).
+            const en = {
+              text: currentLine.textEn,
+              show: showEnglish && !!currentLine.textEn.trim(),
+            };
+            const ko = {
+              text: currentLine.textKo,
+              show: showKorean && !!currentLine.textKo.trim(),
+            };
+            const top = subtitleOrder === 'ko-top' ? ko : en;
+            const bottom = subtitleOrder === 'ko-top' ? en : ko;
+            return (
+              <>
+                {top.show && (
+                  <div
+                    style={{
+                      color: '#ffffff',
+                      fontSize: '3.375rem',
+                      fontWeight: 700,
+                      lineHeight: 1.25,
+                      whiteSpace: 'pre-wrap',
+                      marginBottom: '0.5rem',
+                    }}
+                  >
+                    {top.text}
+                  </div>
+                )}
+                {bottom.show && (
+                  <div
+                    style={{
+                      color: '#fde68a',
+                      fontSize: '2.625rem',
+                      fontWeight: 600,
+                      lineHeight: 1.25,
+                      whiteSpace: 'pre-wrap',
+                    }}
+                  >
+                    {bottom.text}
+                  </div>
+                )}
+              </>
+            );
+          })()
         ) : (
           <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.7rem', fontFamily: 'monospace' }}>
             · {lines.length} cues ({koLineCount} 한)

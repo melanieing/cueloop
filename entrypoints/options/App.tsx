@@ -1,8 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type DailyGoal, type Content, type Line } from '@/src/db';
 import { todayKey } from '@/src/lib/dailyGoal';
 import { broadcastContentUpdate } from '@/src/lib/broadcastUpdate';
+import {
+  getSubtitleOrder,
+  setSubtitleOrder,
+  onSubtitleOrderChange,
+  type SubtitleOrder,
+} from '@/src/lib/subtitleOrder';
 
 const BACKUP_TABLES = [
   'contents',
@@ -258,6 +264,20 @@ export default function App() {
   const [backupError, setBackupError] = useState<string | null>(null);
   const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
+
+  // 자막 표시 순서 (chrome.storage.local)
+  const [subtitleOrder, setOrder] = useState<SubtitleOrder>('en-top');
+  useEffect(() => {
+    let alive = true;
+    void getSubtitleOrder().then((v) => {
+      if (alive) setOrder(v);
+    });
+    const off = onSubtitleOrderChange((v) => setOrder(v));
+    return () => {
+      alive = false;
+      off();
+    };
+  }, []);
 
   // 자막 공유
   const [shareContentId, setShareContentId] = useState<number | ''>('');
@@ -565,6 +585,36 @@ export default function App() {
             라인 또는 CustomLoop이 반복으로 1회 카운트될 때마다 누적.
           </span>
         </label>
+      </section>
+
+      <section className="mb-10">
+        <h2 className="text-lg font-semibold mb-2">🔤 자막 표시 순서</h2>
+        <p className="text-xs text-zinc-400 mb-4 leading-relaxed">
+          위·아래 자막 언어 순서. <strong>위에 오는 언어가 크게(흰색), 아래가 작게(노란색)</strong>{' '}
+          표시됩니다. 배우는 언어(예: 영어 학습자는 영어, 한국어 학습자는 한국어)를 위로
+          두면 편합니다.
+          <br />
+          (현재는 영어·한국어 두 언어. 일본어·중국어 등 다국어 선택은 추후 업데이트 예정.)
+        </p>
+        <div className="flex gap-2">
+          {([
+            ['en-top', '영어 위 / 한국어 아래'],
+            ['ko-top', '한국어 위 / 영어 아래'],
+          ] as const).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => void setSubtitleOrder(value)}
+              className={`px-4 py-2 text-sm rounded border cursor-pointer ${
+                subtitleOrder === value
+                  ? 'bg-blue-600 border-blue-500 text-white'
+                  : 'bg-zinc-900 border-zinc-700 text-zinc-300 hover:bg-zinc-800'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </section>
 
       <section className="mb-10">

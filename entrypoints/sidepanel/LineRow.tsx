@@ -130,6 +130,7 @@ function LineRowImpl({
   isEditing,
   onEditStart,
   onEditEnd,
+  koTop,
   selectionMode,
   isSelected,
   onSelectToggle,
@@ -147,6 +148,7 @@ function LineRowImpl({
   isEditing: boolean;
   onEditStart: (lineId: number) => void;
   onEditEnd: () => void;
+  koTop: boolean;
   selectionMode: boolean;
   isSelected: boolean;
   onSelectToggle: (lineId: number) => void;
@@ -172,6 +174,7 @@ function LineRowImpl({
         progress={progress}
         isCurrent={isCurrent}
         isRepeating={isRepeating}
+        koTop={koTop}
         selectionMode={selectionMode}
         isSelected={isSelected}
       />
@@ -201,6 +204,7 @@ export const LineRow = memo(LineRowImpl, (prev, next) => {
     prev.isEditing === next.isEditing &&
     prev.onEditStart === next.onEditStart &&
     prev.onEditEnd === next.onEditEnd &&
+    prev.koTop === next.koTop &&
     prev.selectionMode === next.selectionMode &&
     prev.isSelected === next.isSelected &&
     prev.onSelectToggle === next.onSelectToggle &&
@@ -221,6 +225,7 @@ function ReadOnlyRow({
   progress,
   isCurrent,
   isRepeating,
+  koTop,
   selectionMode,
   isSelected,
 }: {
@@ -235,6 +240,7 @@ function ReadOnlyRow({
   progress?: LineProgress;
   isCurrent?: boolean;
   isRepeating?: boolean;
+  koTop: boolean;
   selectionMode: boolean;
   isSelected: boolean;
 }) {
@@ -467,12 +473,27 @@ function ReadOnlyRow({
         onClick={onEnterEdit}
         title="클릭해서 텍스트 편집"
       >
-        <div className="text-sm text-zinc-100 leading-snug whitespace-pre-wrap wrap-break-word">
-          {line.textEn || <span className="text-zinc-600 italic">(no English)</span>}
-        </div>
-        <div className="text-sm text-zinc-400 leading-snug whitespace-pre-wrap wrap-break-word mt-1">
-          {line.textKo || <span className="text-zinc-700 italic">(번역 없음)</span>}
-        </div>
+        {(() => {
+          // koTop이면 한국어를 위(주, 흰색)로, 아래(보조, 회색)에 영어.
+          const enEl = (
+            <div className="text-sm leading-snug whitespace-pre-wrap wrap-break-word">
+              {line.textEn || <span className="text-zinc-600 italic">(no English)</span>}
+            </div>
+          );
+          const koEl = (
+            <div className="text-sm leading-snug whitespace-pre-wrap wrap-break-word">
+              {line.textKo || <span className="text-zinc-700 italic">(번역 없음)</span>}
+            </div>
+          );
+          const top = koTop ? koEl : enEl;
+          const bottom = koTop ? enEl : koEl;
+          return (
+            <>
+              <div className="text-zinc-100">{top}</div>
+              <div className="text-zinc-400 mt-1">{bottom}</div>
+            </>
+          );
+        })()}
         {line.note && (
           <div className="text-xs text-amber-400/80 leading-snug whitespace-pre-wrap wrap-break-word mt-1">
             📝 {line.note}
