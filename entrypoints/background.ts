@@ -116,9 +116,26 @@ function extractMovieIdFromUrl(url: string | undefined): string | null {
 }
 
 async function findActiveNetflixContentId(): Promise<number | null> {
-  const tabs = await browser.tabs.query({ active: true, currentWindow: true });
-  const tab = tabs[0];
-  const movieId = extractMovieIdFromUrl(tab?.url);
+  // 활성 탭 우선. SW에는 자체 window가 없어 currentWindow가 불안정하므로
+  // lastFocusedWindow 사용. 그래도 못 잡으면 열려있는 netflix watch 탭으로 폴백.
+  let movieId: string | null = null;
+  try {
+    const active = await browser.tabs.query({
+      active: true,
+      lastFocusedWindow: true,
+    });
+    movieId = extractMovieIdFromUrl(active[0]?.url);
+  } catch {
+    // ignore
+  }
+  if (!movieId) {
+    const watchTabs = await browser.tabs.query({
+      url: 'https://*.netflix.com/watch/*',
+    });
+    // 활성 watch 탭 우선, 없으면 (유일하거나 첫) watch 탭
+    const pick = watchTabs.find((t) => t.active) ?? watchTabs[0];
+    movieId = extractMovieIdFromUrl(pick?.url);
+  }
   if (!movieId) return null;
   const content = await db.contents
     .where('[platform+contentId]')
