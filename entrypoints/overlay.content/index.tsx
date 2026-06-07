@@ -1,23 +1,101 @@
 import ReactDOM from 'react-dom/client';
-import { Overlay } from '@/src/overlay/Overlay';
+import { CueloopRoot } from '@/src/overlay/Overlay';
+import {
+  getOverlayEnabled,
+  setOverlayEnabled,
+  onOverlayEnabledChange,
+} from '@/src/lib/overlayEnabled';
 import './style.css';
 
-const HIDE_NETFLIX_SUBS_CSS = `
-  .player-timedtext,
-  .player-timedtext-text-container,
-  [data-uia="player-subtitle-text"],
-  [data-uia="caption"] {
-    display: none !important;
-  }
-`;
+// Cueloop ON/OFF 토글 버튼.
+// Netflix DOM(컨트롤바)은 마우스 idle 시 사라지고 구조가 자주 바뀌어 의존하지 않는다.
+// 또 우리 오버레이 안(영상 위)에 두면 Netflix 투명 클릭 레이어 아래라 클릭이 재생/정지로 새버린다.
+// → 버튼을 document.body 최상위(클릭 레이어보다 위)에 fixed로 붙여 확실히 클릭되게 하고,
+//    전체화면일 땐 fullscreen 요소로 re-parent해서 전체화면에서도 보이게 한다.
+function setupToggleButton(ctx: { onInvalidated: (cb: () => void) => void }): void {
+  let enabled = true;
 
-function injectNetflixSubtitleHider(): void {
-  if (document.getElementById('cueloop-hide-netflix-subs')) return;
-  const style = document.createElement('style');
-  style.id = 'cueloop-hide-netflix-subs';
-  style.textContent = HIDE_NETFLIX_SUBS_CSS;
-  document.head.appendChild(style);
-  console.log('[Cueloop overlay] Netflix subtitle hider injected');
+  const btn = document.createElement('button');
+  btn.id = 'cueloop-toggle';
+  btn.type = 'button';
+  // px 단위 사용 — Netflix가 html font-size를 줄여놔 rem이 작게 나오는 문제 회피.
+  Object.assign(btn.style, {
+    position: 'fixed',
+    // 좌측 컨트롤(재생·10초뒤·10초앞·음량) 우측 빈 공간 + 컨트롤 행 높이에 맞춤.
+    // body 최상위 fixed라 Netflix DOM 의존 없음. (화면 폭에 따라 미세 조정 가능)
+    left: '345px',
+    bottom: '44px',
+    zIndex: '2147483647',
+    pointerEvents: 'auto',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '9px 16px',
+    borderRadius: '9999px',
+    border: '1px solid rgba(255,255,255,0.2)',
+    cursor: 'pointer',
+    fontFamily: 'system-ui, sans-serif',
+    fontSize: '15px',
+    fontWeight: '700',
+    whiteSpace: 'nowrap',
+    lineHeight: '1',
+    boxShadow: '0 2px 10px rgba(0,0,0,0.5)',
+    transition: 'opacity 0.15s',
+  } as CSSStyleDeclaration);
+
+  function render(): void {
+    btn.textContent = `🎬 Cueloop ${enabled ? 'ON' : 'OFF'}`;
+    btn.style.color = enabled ? '#ede9fe' : 'rgba(255,255,255,0.85)';
+    btn.style.background = enabled ? 'rgba(109,40,217,0.92)' : 'rgba(0,0,0,0.7)';
+    btn.style.borderColor = enabled
+      ? 'rgba(167,139,250,0.8)'
+      : 'rgba(255,255,255,0.25)';
+    btn.style.opacity = enabled ? '0.95' : '0.7';
+    btn.title = enabled
+      ? 'Cueloop 켜짐 — 클릭하면 끄고 평소 넷플릭스로 (자막 직접 변경 가능)'
+      : 'Cueloop 꺼짐 — 클릭하면 학습 오버레이 켜기';
+  }
+  btn.addEventListener('mouseenter', () => (btn.style.opacity = '1'));
+  btn.addEventListener('mouseleave', () => (btn.style.opacity = enabled ? '0.95' : '0.7'));
+
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    void setOverlayEnabled(!enabled); // onChange 구독이 enabled/표시 갱신
+  });
+
+  void getOverlayEnabled().then((v) => {
+    enabled = v;
+    render();
+  });
+  const offSub = onOverlayEnabledChange((v) => {
+    enabled = v;
+    render();
+  });
+  render();
+
+  // /watch/ 페이지에서만 표시. 전체화면이면 fullscreen 요소에, 아니면 body에 붙임.
+  function place(): void {
+    const onWatch = location.pathname.startsWith('/watch/');
+    if (!onWatch) {
+      btn.remove();
+      return;
+    }
+    const parent = document.fullscreenElement ?? document.body;
+    if (btn.parentElement !== parent) parent.appendChild(btn);
+  }
+
+  place();
+  document.addEventListener('fullscreenchange', place);
+  // SPA 네비게이션(/browse ↔ /watch/) 대응 — 가벼운 1초 폴링.
+  const poll = window.setInterval(place, 1000);
+
+  ctx.onInvalidated(() => {
+    window.clearInterval(poll);
+    document.removeEventListener('fullscreenchange', place);
+    offSub();
+    btn.remove();
+  });
 }
 
 export default defineContentScript({
@@ -30,7 +108,7 @@ export default defineContentScript({
   runAt: 'document_idle',
   async main(ctx) {
     console.log('[Cueloop overlay] main() start, location=', location.href);
-    injectNetflixSubtitleHider();
+    setupToggleButton(ctx);
     try {
       const ui = await createShadowRootUi(ctx, {
         name: 'cueloop-subtitle-overlay',
@@ -51,7 +129,7 @@ export default defineContentScript({
             return null;
           }
           const root = ReactDOM.createRoot(container);
-          root.render(<Overlay video={video} />);
+          root.render(<CueloopRoot video={video} />);
           console.log('[Cueloop overlay] React rendered with video element');
           return root;
         },

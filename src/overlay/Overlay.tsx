@@ -1,9 +1,58 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Line } from '@/src/db';
 import type { CueloopMessage } from '@/src/messages';
+import {
+  getOverlayEnabled,
+  onOverlayEnabledChange,
+} from '@/src/lib/overlayEnabled';
 
 interface OverlayProps {
   video: HTMLVideoElement;
+}
+
+const HIDE_NETFLIX_SUBS_CSS = `
+  .player-timedtext,
+  .player-timedtext-text-container,
+  [data-uia="player-subtitle-text"],
+  [data-uia="caption"] {
+    display: none !important;
+  }
+`;
+
+function injectNetflixSubtitleHider(): void {
+  if (document.getElementById('cueloop-hide-netflix-subs')) return;
+  const style = document.createElement('style');
+  style.id = 'cueloop-hide-netflix-subs';
+  style.textContent = HIDE_NETFLIX_SUBS_CSS;
+  document.head.appendChild(style);
+}
+
+function removeNetflixSubtitleHider(): void {
+  document.getElementById('cueloop-hide-netflix-subs')?.remove();
+}
+
+/**
+ * 켜졌을 때만 실제 <Overlay>(자막/단축키/rAF/Netflix 자막 hider)를 마운트한다.
+ * 끄면 <Overlay>가 언마운트되며 effect cleanup으로 hider 제거·rAF 정지 등 전부 원복 → 그냥 넷플릭스.
+ * ON/OFF 토글 버튼은 Netflix 재생바 컨트롤에 직접 주입 (index.tsx setupControlBarToggle).
+ */
+export function CueloopRoot({ video }: OverlayProps) {
+  const [enabled, setEnabled] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    void getOverlayEnabled().then((v) => {
+      if (alive) setEnabled(v);
+    });
+    const off = onOverlayEnabledChange((v) => setEnabled(v));
+    return () => {
+      alive = false;
+      off();
+    };
+  }, []);
+
+  if (!enabled) return null;
+  return <Overlay video={video} />;
 }
 
 function currentMovieIdFromUrl(): string | null {
@@ -160,6 +209,13 @@ export function Overlay({ video }: OverlayProps) {
   const lastSeekAtRef = useRef(0);
   const lastLineIdRef = useRef<number | undefined>(undefined);
   const pendingStartMsRef = useRef<number | null>(null);
+
+  // Overlay가 마운트된 동안(= Cueloop ON)에만 Netflix 자체 자막을 숨김.
+  // 언마운트(= OFF) 시 cleanup으로 제거 → 넷플릭스 기본 자막 정상 복귀.
+  useEffect(() => {
+    injectNetflixSubtitleHider();
+    return () => removeNetflixSubtitleHider();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
