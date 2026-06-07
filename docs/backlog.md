@@ -259,6 +259,7 @@ v0.2.1을 심사 중 취소하고 아래 hide 기능을 더해 0.2.2로 bump →
 - [x] 전역 ON/OFF 토글 — 영상 컨트롤바 우측(body fixed, 전체화면 re-parent)에 🎬 Cueloop ON/OFF 버튼. 끄면 자막 hider/오버레이/단축키/rAF 전부 정지 → 그냥 넷플릭스. chrome.storage.local에 상태 저장(= storage 권한 실제 사용). 자막 ingest는 계속.
 - [x] 자막 표시 순서 (Phase 1) — 옵션 "🔤 자막 표시 순서"에서 영어 위/한국어 위 선택. 위=주(흰색 큼)/아래=보조(amber 작음). 오버레이+사이드패널 반영. chrome.storage.local + onChanged 실시간 동기화.
 - [x] **자동 연동 활성 탭 감지 버그픽스** — 재생 중인 영상인데 "자동 연동(대기)"로 뜨고 클릭하면 엉뚱한 콘텐츠로 가던 문제. 원인: `findActiveNetflixContentId`의 `tabs.query({currentWindow:true})`가 SW(자체 window 없음)에서 불안정 → null. `lastFocusedWindow` + netflix watch 탭 폴백으로 교체.
+- [x] **ON/OFF 토글 컨트롤바 동기화** — 토글 버튼이 마우스 idle 시에도 혼자 떠 있던 문제. 마우스 활동(mousemove/mousedown)에 반응해 표시, idle 2.5초 후 숨김(Netflix 기본 타이밍에 맞춤). 버튼 hover 중엔 유지. Netflix DOM 비의존(같은 입력에 반응 → 사실상 동기화).
 - [ ] **v0.2.5 제출 대기** — v0.2.4 통과 후 bump+zip. ⚠ storage 권한 추가됨(이번엔 실사용) → 권한 변경 심사 주의.
 
 ## v0.3 후보 — 자막 다국어 (Phase 2, 큰 작업)

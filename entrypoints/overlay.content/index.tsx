@@ -43,6 +43,10 @@ function setupToggleButton(ctx: { onInvalidated: (cb: () => void) => void }): vo
     transition: 'opacity 0.15s',
   } as CSSStyleDeclaration);
 
+  // 컨트롤바 동기화 상태: 마우스 활동이 있으면 visible, idle이면 숨김.
+  let visible = true;
+  let hovering = false;
+
   function render(): void {
     btn.textContent = `🎬 Cueloop ${enabled ? 'ON' : 'OFF'}`;
     btn.style.color = enabled ? '#ede9fe' : 'rgba(255,255,255,0.85)';
@@ -50,13 +54,45 @@ function setupToggleButton(ctx: { onInvalidated: (cb: () => void) => void }): vo
     btn.style.borderColor = enabled
       ? 'rgba(167,139,250,0.8)'
       : 'rgba(255,255,255,0.25)';
-    btn.style.opacity = enabled ? '0.95' : '0.7';
     btn.title = enabled
       ? 'Cueloop 켜짐 — 클릭하면 끄고 평소 넷플릭스로 (자막 직접 변경 가능)'
       : 'Cueloop 꺼짐 — 클릭하면 학습 오버레이 켜기';
+    // idle이면 컨트롤바와 함께 사라짐. 버튼에 hover 중이면 유지.
+    if (!visible && !hovering) {
+      btn.style.opacity = '0';
+      btn.style.pointerEvents = 'none';
+    } else {
+      btn.style.opacity = hovering ? '1' : enabled ? '0.95' : '0.7';
+      btn.style.pointerEvents = 'auto';
+    }
   }
-  btn.addEventListener('mouseenter', () => (btn.style.opacity = '1'));
-  btn.addEventListener('mouseleave', () => (btn.style.opacity = enabled ? '0.95' : '0.7'));
+  btn.addEventListener('mouseenter', () => {
+    hovering = true;
+    render();
+  });
+  btn.addEventListener('mouseleave', () => {
+    hovering = false;
+    render();
+  });
+
+  // Netflix 컨트롤바와 동기화: 컨트롤바 DOM에 의존하지 않고(월 1-2회 변경 위험)
+  // 컨트롤바와 같은 입력(마우스 활동)에 반응 → 마우스 움직이면 표시, idle 3초 후
+  // 숨김(Netflix 기본 타이밍과 동일). 결과적으로 재생바와 같이 나타났다 사라짐.
+  let idleTimer = 0;
+  function poke(): void {
+    if (!visible) {
+      visible = true;
+      render();
+    }
+    window.clearTimeout(idleTimer);
+    idleTimer = window.setTimeout(() => {
+      visible = false;
+      render();
+    }, 2500);
+  }
+  document.addEventListener('mousemove', poke, { passive: true });
+  document.addEventListener('mousedown', poke, { passive: true });
+  poke();
 
   btn.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -92,7 +128,10 @@ function setupToggleButton(ctx: { onInvalidated: (cb: () => void) => void }): vo
 
   ctx.onInvalidated(() => {
     window.clearInterval(poll);
+    window.clearTimeout(idleTimer);
     document.removeEventListener('fullscreenchange', place);
+    document.removeEventListener('mousemove', poke);
+    document.removeEventListener('mousedown', poke);
     offSub();
     btn.remove();
   });
