@@ -47,8 +47,15 @@ function setupToggleButton(ctx: { onInvalidated: (cb: () => void) => void }): vo
   let visible = true;
   let hovering = false;
 
+  // 좁은 너비에선 중앙 제목과 겹치고 컨트롤바 높이도 낮아지므로,
+  // 라벨을 떼고 🎬 이모지만(작은 버튼) + 버튼 행에 맞춰 아래로 내린다.
+  const COMPACT_WIDTH = 1241;
+
   function render(): void {
-    btn.textContent = `🎬 Cueloop ${enabled ? 'ON' : 'OFF'}`;
+    const compact = window.innerWidth < COMPACT_WIDTH;
+    btn.textContent = compact ? '🎬' : `🎬 Cueloop ${enabled ? 'ON' : 'OFF'}`;
+    btn.style.padding = compact ? '8px 11px' : '9px 16px';
+    btn.style.bottom = compact ? '20px' : '44px';
     btn.style.color = enabled ? '#ede9fe' : 'rgba(255,255,255,0.85)';
     btn.style.background = enabled ? 'rgba(109,40,217,0.92)' : 'rgba(0,0,0,0.7)';
     btn.style.borderColor = enabled
@@ -94,6 +101,10 @@ function setupToggleButton(ctx: { onInvalidated: (cb: () => void) => void }): vo
   document.addEventListener('mousedown', poke, { passive: true });
   poke();
 
+  // 너비 변경 시 compact 라벨 갱신.
+  const onResize = () => render();
+  window.addEventListener('resize', onResize, { passive: true });
+
   btn.addEventListener('click', (e) => {
     e.stopPropagation();
     e.preventDefault();
@@ -132,6 +143,7 @@ function setupToggleButton(ctx: { onInvalidated: (cb: () => void) => void }): vo
     document.removeEventListener('fullscreenchange', place);
     document.removeEventListener('mousemove', poke);
     document.removeEventListener('mousedown', poke);
+    window.removeEventListener('resize', onResize);
     offSub();
     btn.remove();
   });

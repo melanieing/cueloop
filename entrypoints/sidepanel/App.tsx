@@ -13,6 +13,10 @@ import {
   onSubtitleOrderChange,
   type SubtitleOrder,
 } from '@/src/lib/subtitleOrder';
+import {
+  getOverlayEnabled,
+  onOverlayEnabledChange,
+} from '@/src/lib/overlayEnabled';
 import { LineRow, TrashIcon, EyeOffIcon } from './LineRow';
 import { InsertLineModal } from './InsertLineModal';
 import { CustomLoopList } from './CustomLoopList';
@@ -153,6 +157,10 @@ export default function App() {
   const [showOnlyStarred, setShowOnlyStarred] = useState(false);
   const [showHidden, setShowHidden] = useState(false);
   const [subtitleOrder, setSubtitleOrder] = useState<SubtitleOrder>('en-top');
+  // Cueloop ON/OFF 상태. OFF면 오버레이가 언마운트돼 재생/반복/단축키가 동작 안 함.
+  // 사용자가 OFF 상태에서 라인을 눌렀을 때 안내 토스트를 띄우기 위해 추적.
+  const [overlayEnabled, setOverlayEnabledState] = useState(true);
+  const [offNotice, setOffNotice] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -160,6 +168,21 @@ export default function App() {
       if (alive) setSubtitleOrder(v);
     });
     const off = onSubtitleOrderChange((v) => setSubtitleOrder(v));
+    return () => {
+      alive = false;
+      off();
+    };
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    void getOverlayEnabled().then((v) => {
+      if (alive) setOverlayEnabledState(v);
+    });
+    const off = onOverlayEnabledChange((v) => {
+      setOverlayEnabledState(v);
+      if (v) setOffNotice(false); // 켜지면 안내 자동으로 닫음
+    });
     return () => {
       alive = false;
       off();
@@ -282,6 +305,10 @@ export default function App() {
   const handleJump = useCallback(
     async (startMs: number) => {
       if (effectiveContentId == null) return;
+      if (!overlayEnabled) {
+        setOffNotice(true);
+        return;
+      }
       const msg: CueloopMessage = {
         type: 'JUMP_TO_LINE',
         payload: { contentId: effectiveContentId, startMs },
@@ -301,27 +328,34 @@ export default function App() {
         setTimeout(() => setJumpError(null), 4000);
       }
     },
-    [effectiveContentId],
+    [effectiveContentId, overlayEnabled],
   );
 
-  const handleLoop = useCallback(async (lineId: number) => {
-    const msg: CueloopMessage = {
-      type: 'PLAY_LINE_LOOP',
-      payload: { lineId },
-    };
-    try {
-      const resp = (await browser.runtime.sendMessage(msg)) as
-        | { ok?: boolean; error?: string }
-        | undefined;
-      if (!resp?.ok) {
-        setJumpError(resp?.error ?? '반복 시작 실패');
+  const handleLoop = useCallback(
+    async (lineId: number) => {
+      if (!overlayEnabled) {
+        setOffNotice(true);
+        return;
+      }
+      const msg: CueloopMessage = {
+        type: 'PLAY_LINE_LOOP',
+        payload: { lineId },
+      };
+      try {
+        const resp = (await browser.runtime.sendMessage(msg)) as
+          | { ok?: boolean; error?: string }
+          | undefined;
+        if (!resp?.ok) {
+          setJumpError(resp?.error ?? '반복 시작 실패');
+          setTimeout(() => setJumpError(null), 4000);
+        }
+      } catch (err) {
+        setJumpError(String(err));
         setTimeout(() => setJumpError(null), 4000);
       }
-    } catch (err) {
-      setJumpError(String(err));
-      setTimeout(() => setJumpError(null), 4000);
-    }
-  }, []);
+    },
+    [overlayEnabled],
+  );
 
   const handleStopRepeat = useCallback(async () => {
     const msg: CueloopMessage = { type: 'STOP_REPEAT' };
@@ -1200,6 +1234,27 @@ export default function App() {
       {jumpError && (
         <div className="fixed bottom-4 left-4 right-4 bg-red-950/90 border border-red-800 text-red-100 text-xs rounded p-2 shadow-lg z-50">
           ⚠ {jumpError}
+        </div>
+      )}
+
+      {offNotice && (
+        <div className="fixed bottom-4 left-4 right-4 bg-violet-900/95 border border-violet-500 text-violet-50 text-xs rounded-lg p-3 shadow-xl z-50 flex items-start gap-2">
+          <span className="text-base leading-none">🎬</span>
+          <div className="flex-1 leading-snug">
+            <div className="font-semibold mb-0.5">Cueloop가 꺼져 있어요</div>
+            <div className="text-violet-200">
+              영상 화면 왼쪽 아래 <b>🎬 Cueloop</b> 버튼을 눌러 켜면 재생·반복·단축키가
+              동작해요.
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setOffNotice(false)}
+            className="text-violet-300 hover:text-white shrink-0"
+            title="닫기"
+          >
+            ✕
+          </button>
         </div>
       )}
 
