@@ -263,6 +263,7 @@ v0.2.1을 심사 중 취소하고 아래 hide 기능을 더해 0.2.2로 bump →
 - [x] **토글 버튼 컴팩트 모드** — 너비 < 1241px이면 라벨 떼고 🎬 아이콘만 + 패딩 축소 + bottom 20px로 내려 컨트롤 버튼 행에 정렬(좁은 화면에서 컨트롤바 높이가 낮아지고 중앙 제목과 겹치는 문제 해소). resize 시 실시간 전환. ※ 반응형 위치 측정 방식은 좁은 너비에서 버튼이 들쭉날쭉해 폐기, 고정 위치 + 컴팩트 라벨로 결정.
 - [x] **OFF 상태 안내 토스트** — Cueloop OFF면 오버레이 언마운트로 재생/반복/단축키가 죽는데, 사이드패널에서 라인 눌러도 무반응이라 혼란. 사이드패널이 `overlayEnabled` 추적 → OFF에서 점프/반복 누르면 전송 막고 "🎬 버튼 켜세요" 보라색 토스트(dismissible). ON 되면 자동 닫힘. 편집/마킹(DB 작업)은 OFF여도 그대로.
 - [x] **신규 기능 문서·인앱 안내 반영** (2026-06-10) — 전 docs(README/CLAUDE/WEB_STORE_LISTING/PRIVACY_POLICY/mvp-plan/troubleshooting) + 옵션 onboarding 2단계 추가(ON/OFF 토글·자막 순서, 10→12단계) + FAQ "그냥 넷플릭스만 보고 싶을 때" 추가. PRIVACY_POLICY storage 권한·UI 설정값 명시.
+- [x] **🎬 이모지 → 서비스 아이콘** (2026-06-10) — 토글 버튼·onboarding·FAQ에 실제 아이콘 이미지 사용. `public/cueloop-icon.png`(원본·어두운, 128px) + `cueloop-icon-dark.png`(darkmode·밝은, 128px) 두 변형. content script 노출용 `web_accessible_resources`(netflix.com 한정) 추가. **대비 최적화**: ON 배경을 파스텔 연보라(`#C4B5FD`)+어두운 아이콘, OFF는 검정+밝은 아이콘으로 상태별 전환(원본 1024px/1.3MB는 128px/~10KB로 리사이즈). ※ manifest에 web_accessible_resources 신규 필드 — 제출 시 인지.
 - [x] **v0.2.5 zip 준비 완료** (2026-06-10) — `cueloop-0.2.5-chrome.zip` (onboarding/FAQ 반영 후 재zip). version bump 0.2.4→0.2.5, manifest에 storage 권한 포함 확인. WEB_STORE_LISTING에 storage 정당화 추가.
 - [ ] **v0.2.5 devconsole 업로드/제출** — 사용자가 직접. ⚠ storage 권한 추가라 form에 정당화 입력 필수(WEB_STORE_LISTING 참조), 권한 변경이라 심사 더 볼 수 있음.
 

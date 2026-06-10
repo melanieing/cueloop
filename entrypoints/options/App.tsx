@@ -10,6 +10,10 @@ import {
   type SubtitleOrder,
 } from '@/src/lib/subtitleOrder';
 
+// 우리 서비스 아이콘. onboarding/FAQ의 배지가 다크(purple-950) 배경이라
+// 다크 배경용(밝은) 변형 사용 (light 변형은 향후 밝은 배경용).
+const ICON_URL = browser.runtime.getURL('/cueloop-icon-dark.png');
+
 const BACKUP_TABLES = [
   'contents',
   'lines',
@@ -413,8 +417,9 @@ export default function App() {
           <li>
             <strong className="text-zinc-100">사이드패널 열기</strong> —
             Netflix watch 페이지에서 Chrome 우상단의{' '}
-            <span className="inline-block px-1.5 py-0.5 bg-purple-950/40 border border-purple-800 rounded text-xs">
-              🎬 Cueloop 아이콘
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-purple-950/40 border border-purple-800 rounded text-xs align-middle">
+              <img src={ICON_URL} alt="" className="w-4 h-4 object-contain" />
+              Cueloop 아이콘
             </span>
             을 <strong>한 번 클릭</strong>하면 사이드패널이 열립니다.
             (한 번 더 클릭하면 닫힘 — 토글)
@@ -428,8 +433,9 @@ export default function App() {
           <li>
             <strong className="text-zinc-100">학습 끄고 켜기 (ON/OFF)</strong> —
             영상 컨트롤바(음량 버튼 오른쪽)의{' '}
-            <span className="inline-block px-1.5 py-0.5 bg-purple-950/40 border border-purple-800 rounded text-xs">
-              🎬 Cueloop
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-purple-950/40 border border-purple-800 rounded text-xs align-middle">
+              <img src={ICON_URL} alt="" className="w-4 h-4 object-contain" />
+              Cueloop
             </span>
             {' '}버튼으로 학습 오버레이를 한 번에 켜고 끕니다.{' '}
             <strong>끄면</strong> 자막 오버레이·단축키가 모두 멈춰 평소 넷플릭스
@@ -849,7 +855,10 @@ export default function App() {
             </summary>
             <div className="text-xs text-zinc-400 mt-2 leading-relaxed">
               영상 컨트롤바(음량 버튼 오른쪽)의{' '}
-              <span className="px-1 py-0.5 bg-purple-950/40 border border-purple-800 rounded text-purple-200">🎬 Cueloop</span>{' '}
+              <span className="inline-flex items-center gap-1 px-1 py-0.5 bg-purple-950/40 border border-purple-800 rounded text-purple-200 align-middle">
+                <img src={ICON_URL} alt="" className="w-3.5 h-3.5 object-contain" />
+                Cueloop
+              </span>{' '}
               버튼을 눌러 <strong>OFF</strong>로 바꾸면 자막 오버레이·단축키가 모두
               멈춰 평소 넷플릭스 그대로 볼 수 있습니다. 다시 학습할 땐 같은 버튼으로
               ON. (꺼져 있는 동안에도 자막 수집과 학습 데이터는 그대로 유지됩니다.)

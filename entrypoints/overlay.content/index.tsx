@@ -43,6 +43,26 @@ function setupToggleButton(ctx: { onInvalidated: (cb: () => void) => void }): vo
     transition: 'opacity 0.15s',
   } as CSSStyleDeclaration);
 
+  // 🎬 이모지 대신 우리 서비스 아이콘. 배경 밝기에 따라 변형을 바꿔 대비 확보:
+  //  - ON  = 파스텔 연보라(밝은 배경) → 원본(어두운) 아이콘
+  //  - OFF = 검정(어두운 배경)       → darkmode(밝은) 아이콘
+  // content script가 netflix.com에서 확장 이미지를 쓰려면 web_accessible_resources 필요(wxt.config).
+  const ICON_FOR_LIGHT_BG = browser.runtime.getURL('/cueloop-icon.png'); // 원본(어두운 아이콘)
+  const ICON_FOR_DARK_BG = browser.runtime.getURL('/cueloop-icon-dark.png'); // darkmode(밝은 아이콘)
+  const iconImg = document.createElement('img');
+  iconImg.alt = '';
+  Object.assign(iconImg.style, {
+    height: '18px',
+    width: '18px',
+    objectFit: 'contain',
+    display: 'block',
+    flex: '0 0 auto',
+    pointerEvents: 'none',
+  } as CSSStyleDeclaration);
+  const labelSpan = document.createElement('span');
+  labelSpan.style.pointerEvents = 'none';
+  btn.append(iconImg, labelSpan);
+
   // 컨트롤바 동기화 상태: 마우스 활동이 있으면 visible, idle이면 숨김.
   let visible = true;
   let hovering = false;
@@ -53,14 +73,22 @@ function setupToggleButton(ctx: { onInvalidated: (cb: () => void) => void }): vo
 
   function render(): void {
     const compact = window.innerWidth < COMPACT_WIDTH;
-    btn.textContent = compact ? '🎬' : `🎬 Cueloop ${enabled ? 'ON' : 'OFF'}`;
-    btn.style.padding = compact ? '8px 11px' : '9px 16px';
+    // 컴팩트는 아이콘만, 일반은 아이콘 + "Cueloop ON/OFF" 라벨.
+    labelSpan.textContent = compact ? '' : `Cueloop ${enabled ? 'ON' : 'OFF'}`;
+    labelSpan.style.display = compact ? 'none' : 'inline';
+    btn.style.gap = compact ? '0' : '6px';
+    btn.style.padding = compact ? '7px' : '9px 16px';
     btn.style.bottom = compact ? '20px' : '44px';
-    btn.style.color = enabled ? '#ede9fe' : 'rgba(255,255,255,0.85)';
-    btn.style.background = enabled ? 'rgba(109,40,217,0.92)' : 'rgba(0,0,0,0.7)';
+    // ON = 파스텔 연보라(밝은 배경) → 어두운 글자/아이콘. OFF = 검정 → 밝은 글자/아이콘.
+    btn.style.color = enabled ? '#3b0764' : 'rgba(255,255,255,0.85)';
+    btn.style.background = enabled
+      ? 'rgba(196,181,253,0.96)'
+      : 'rgba(0,0,0,0.7)';
     btn.style.borderColor = enabled
-      ? 'rgba(167,139,250,0.8)'
+      ? 'rgba(124,58,237,0.55)'
       : 'rgba(255,255,255,0.25)';
+    const wantIcon = enabled ? ICON_FOR_LIGHT_BG : ICON_FOR_DARK_BG;
+    if (iconImg.src !== wantIcon) iconImg.src = wantIcon; // 같은 src 재할당(=재로드) 방지
     btn.title = enabled
       ? 'Cueloop 켜짐 — 클릭하면 끄고 평소 넷플릭스로 (자막 직접 변경 가능)'
       : 'Cueloop 꺼짐 — 클릭하면 학습 오버레이 켜기';
