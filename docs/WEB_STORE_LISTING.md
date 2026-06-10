@@ -214,6 +214,11 @@ Cueloop is a tool that makes this method smooth to execute on Netflix.
 
 각 권한에 대해 Web Store 심사관에게 설명할 텍스트:
 
+### `storage`
+```
+Stores small UI preferences in chrome.storage.local so they sync instantly between the content script and the extension pages: the global ON/OFF toggle (whether the learning overlay is active) and the subtitle display order (English-on-top or Korean-on-top). All learning data (subtitles, progress, streaks) lives in the user's local IndexedDB, not in this permission. No data is sent to any server.
+```
+
 ### `sidePanel`
 ```
 Provides the learning side panel UI where users review subtitle lines, edit them, manage A-B repeat segments (CustomLoops), and track learning progress.
@@ -289,6 +294,7 @@ Chrome Web Store 권장 해상도: **1280×800 또는 640×400 (PNG/JPG)**. 5장
 - [x] 한 줄 설명 / 상세 설명(한/영) / 권한 정당화 / 데이터 안전(💾) 항목 작성
 - [x] **1차 제출** (2026-05-27) — 심사 대기 도중 UX 개선 작업 발견하여 검토 취소
 - [x] **재제출** (2026-05-28) — 같은 v0.2.0, UX 개선 반영 zip + 갱신된 listing 텍스트
+- [x] **v0.2.5 제출 준비** (2026-06-10) — `cueloop-0.2.5-chrome.zip`. 전역 ON/OFF 토글, 자막 표시 순서(영/한), 자동 연동 버그픽스, 토글 컨트롤바 동기화/컴팩트, OFF 안내 토스트. ⚠ **권한 추가: `storage`**(토글·자막순서 상태 저장에 실사용) → 제출 form에 위 `storage` 정당화 텍스트 입력 필수(권한 변경이라 심사 더 볼 수 있음).
 - [ ] **심사 통과 대기 중** (1-3일 예상)
 
 ## ✓ 등록 후 운영 (Phase 1 모니터링) — 출시 후 시작
