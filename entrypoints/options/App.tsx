@@ -426,6 +426,17 @@ export default function App() {
             오버레이가 자동 표시됩니다.
           </li>
           <li>
+            <strong className="text-zinc-100">학습 끄고 켜기 (ON/OFF)</strong> —
+            영상 컨트롤바(음량 버튼 오른쪽)의{' '}
+            <span className="inline-block px-1.5 py-0.5 bg-purple-950/40 border border-purple-800 rounded text-xs">
+              🎬 Cueloop
+            </span>
+            {' '}버튼으로 학습 오버레이를 한 번에 켜고 끕니다.{' '}
+            <strong>끄면</strong> 자막 오버레이·단축키가 모두 멈춰 평소 넷플릭스
+            그대로 — 가볍게 볼 땐 끄고, 학습할 땐 켜세요. (OFF 상태에서 사이드패널
+            라인을 누르면 켜라는 안내가 뜹니다.)
+          </li>
+          <li>
             <strong className="text-zinc-100">제목 입력</strong> — 사이드패널
             상단 <span className="px-1 py-0.5 bg-amber-950/40 border border-amber-800 rounded text-xs text-amber-300">✎ 제목</span>
             {' '}버튼을 클릭해서 영상 제목을 입력해두면 드롭다운에서 찾기
@@ -508,6 +519,12 @@ export default function App() {
             아래에서 목표 설정. 학습 시간 + 100LS 카운트 둘 다 달성하는 날마다{' '}
             <span className="text-amber-400">🔥 스트릭</span>이 +1. 확장 아이콘에
             연속 일수가 emerald 배지로 표시됩니다.
+          </li>
+          <li>
+            <strong className="text-zinc-100">자막 표시 순서 (영/한)</strong> —
+            기본은 영어가 위, 한국어가 아래입니다. 아래{' '}
+            <span className="px-1 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-xs">🔤 자막 표시 순서</span>
+            {' '}에서 한국어를 위로 바꿀 수 있습니다 (한국어를 배우는 분용 — 오버레이·사이드패널에 즉시 반영).
           </li>
         </ol>
 
@@ -823,6 +840,19 @@ export default function App() {
               영상 화면 또는 사이드패널에 포커스가 있어야 합니다 (라인 텍스트
               편집 중일 땐 일반 입력이 우선). 다른 앱 창이나 주소창에 포커스가
               있으면 동작하지 않습니다.
+            </div>
+          </details>
+
+          <details className="bg-zinc-900/60 border border-zinc-800 rounded p-3">
+            <summary className="text-sm font-medium text-zinc-200 cursor-pointer">
+              그냥 편하게 넷플릭스만 보고 싶어요.
+            </summary>
+            <div className="text-xs text-zinc-400 mt-2 leading-relaxed">
+              영상 컨트롤바(음량 버튼 오른쪽)의{' '}
+              <span className="px-1 py-0.5 bg-purple-950/40 border border-purple-800 rounded text-purple-200">🎬 Cueloop</span>{' '}
+              버튼을 눌러 <strong>OFF</strong>로 바꾸면 자막 오버레이·단축키가 모두
+              멈춰 평소 넷플릭스 그대로 볼 수 있습니다. 다시 학습할 땐 같은 버튼으로
+              ON. (꺼져 있는 동안에도 자막 수집과 학습 데이터는 그대로 유지됩니다.)
             </div>
           </details>
         </div>
