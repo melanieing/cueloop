@@ -1,7 +1,7 @@
 # Cueloop 개인정보 처리방침 (Privacy Policy)
 
-> 마지막 업데이트: 2026-05-27
-> Cueloop 버전: 0.2.0
+> 마지막 업데이트: 2026-06-10
+> Cueloop 버전: 0.2.5
 
 ## 한국어
 
@@ -20,6 +20,7 @@ Cueloop이 사용자의 브라우저 IndexedDB에 **로컬로** 저장하는 데
 - **일일 학습 통계**: 학습 시간(초), 라인 반복 횟수, 일일 목표 달성 여부.
 - **스트릭**: 연속 학습일 수.
 - **설정값**: 일일 목표 시간/카운트.
+- **UI 설정값** (`chrome.storage.local`): 학습 오버레이 ON/OFF 상태, 자막 표시 순서(영어 위/한국어 위). 디바이스 로컬에만 저장되며 외부로 전송되지 않습니다.
 
 ### 3. 데이터 전송 정책
 
@@ -33,6 +34,7 @@ Cueloop이 사용자의 브라우저 IndexedDB에 **로컬로** 저장하는 데
 
 | 권한 | 사용 목적 |
 |---|---|
+| `storage` | UI 설정값(ON/OFF 토글, 자막 표시 순서) 로컬 저장 (외부 전송 없음) |
 | `sidePanel` | 학습용 사이드 패널 UI 제공 |
 | `alarms` | 매일 자정 학습 스트릭 갱신 (외부 호출 없음) |
 | `notifications` | 일일 목표 달성 시 사용자에게 알림 |
@@ -77,6 +79,7 @@ Cueloop stores the following data **locally** in the user's browser IndexedDB:
 - **Daily learning stats**: Study seconds, listen counts, daily goal completion.
 - **Streak**: Consecutive learning day count.
 - **Settings**: Daily target minutes/listens.
+- **UI preferences** (`chrome.storage.local`): learning overlay ON/OFF state, subtitle display order (English-top / Korean-top). Stored locally on the device only, never transmitted.
 
 ### 3. Data Transmission Policy
 
@@ -90,6 +93,7 @@ Cueloop stores the following data **locally** in the user's browser IndexedDB:
 
 | Permission | Purpose |
 |---|---|
+| `storage` | Store UI preferences (ON/OFF toggle, subtitle display order) locally (no external transmission) |
 | `sidePanel` | Provide learning side panel UI |
 | `alarms` | Daily midnight streak update (no external calls) |
 | `notifications` | Notify user on daily goal completion |

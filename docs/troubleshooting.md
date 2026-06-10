@@ -693,3 +693,15 @@ if (currentMovieId !== detail.movieId) {
 - 두 버그 모두 "첫 로드만 깨지고 이후 정상" 패턴 → 초기화 타이밍/주입 race 의심 신호.
 
 ---
+
+### #27. 자동 연동이 재생 중인 영상을 못 잡음 — SW에서 `tabs.query({currentWindow:true})` 불안정
+
+**증상** (v0.2.5 작업 중, 2026-06-10): Set It Up을 재생 중이고 사이드패널도 Set It Up인데 헤더가 "📺 자동 연동"이 아니라 "📺 현재 영상으로" 버튼으로 뜸. 그 버튼을 누르면(자동 연동 복귀) 엉뚱하게 다른 콘텐츠(지정생존자)로 가버리고 "자동 연동(대기)"가 표시됨. = `activeContentId`가 null로 잡혀 `contents[0]`로 폴백.
+
+**원인**: `findActiveNetflixContentId()`가 `browser.tabs.query({ active: true, currentWindow: true })`로 활성 탭을 찾는데, **background service worker는 자체 window가 없어 `currentWindow`가 불안정**(빈 결과/엉뚱한 창 반환). → movieId 추출 실패 → activeContentId null. 오버레이는 자기 `location`으로 movieId를 알아 자막은 정상이지만, background의 활성 탭 감지는 별개 경로라 깨짐.
+
+**해결**: `currentWindow` → `lastFocusedWindow`로 교체(SW 권장). 그래도 못 잡으면 열려있는 netflix watch 탭(`tabs.query({ url: 'https://*.netflix.com/watch/*' })`, 활성 탭 우선)으로 폴백. 함수만 변경, 호출부(탭 이벤트·인제스트 후·QUERY) 4곳은 그대로라 자동으로 robust해짐. ([#15] 자동 연동 패턴의 후속 버그.)
+
+**교훈**: background SW에서 "사용자가 보는 탭"을 찾을 땐 `currentWindow` 금지(window 없음) → `lastFocusedWindow` 사용. 그리고 단일 신호(활성 탭)에만 의존하지 말고 도메인 특화 폴백(열린 watch 탭)을 둬서 회복력 확보. 실제 재생 중인 영상은 content script(location)가 가장 정확히 알지만, 그건 SW가 직접 못 보는 정보라 탭 쿼리로 근사.
+
+---
