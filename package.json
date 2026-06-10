@@ -1,6 +1,6 @@
 {
   "name": "cueloop",
-  "description": "Netflix 시청 중 듀얼 자막·A-B 반복·100회 카운터로 100LS 학습법을 자동화",
+  "description": "넷플릭스 자막을 내가 직접 고치고 채워 완성한 뒤, 좋아하는 장면을 한 줄씩 100번 반복해 듣고 따라 말하세요. 영화 한 편이 통째로 입에 붙고 외워집니다.",
   "private": true,
   "version": "0.2.5",
   "type": "module",

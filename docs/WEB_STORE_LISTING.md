@@ -17,7 +17,7 @@
 
 | 항목 | 값 |
 |---|---|
-| 확장 이름 | **Cueloop — 영화로 영어 100번 듣기** |
+| 확장 이름 | **Cueloop — 내가 완성하는 자막으로 영화 100번 들어 외워버리기** |
 | 카테고리 | 교육 (Education) |
 | 기본 언어 | 한국어 |
 | 추가 언어 | 영어 |
@@ -32,15 +32,15 @@
 
 ### 한국어 (권장)
 ```
-영화 한 편을 100번 듣고 따라 말하는 학습법(100LS)을 위한 듀얼 자막 + A-B 반복 + 자막 편집 + 일일 목표 도구.
+넷플릭스 자막을 내가 직접 고치고 채워 완성한 뒤, 좋아하는 장면을 한 줄씩 100번 반복해 듣고 따라 말하세요. 영화 한 편이 통째로 입에 붙고 외워집니다.
 ```
-(95자 — OK)
+(88자 — OK)
 
 ### English
 ```
-Dual subtitles + A-B repeat + subtitle editing + daily goals for the "100 Listenings" English learning method.
+Fix Netflix subtitles yourself, then replay any line 100 times and shadow it — until a whole movie is memorized.
 ```
-(115자 — OK)
+(112자 — OK)
 
 ---
 

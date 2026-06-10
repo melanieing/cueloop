@@ -4,7 +4,10 @@ import tailwindcss from '@tailwindcss/vite';
 // See https://wxt.dev/api/config.html
 export default defineConfig({
   manifest: {
-    name: 'Cueloop — 영화로 영어 100번 듣기',
+    name: 'Cueloop — 내가 완성하는 자막으로 영화 100번 들어 외워버리기',
+    // 짧은 설명(스토어 요약, 132자 이내). 차별점(자막 직접 완성 + 구간 반복 + 100LS) 어필.
+    description:
+      '넷플릭스 자막을 내가 직접 고치고 채워 완성한 뒤, 좋아하는 장면을 한 줄씩 100번 반복해 듣고 따라 말하세요. 영화 한 편이 통째로 입에 붙고 외워집니다.',
     // storage: 오버레이 ON/OFF 전역 토글 상태를 chrome.storage.local에 저장 (content script가
     // 확장 IndexedDB에 접근 못 하므로). 학습 데이터 자체는 여전히 IndexedDB(Dexie).
     permissions: ['storage', 'sidePanel', 'alarms', 'notifications'],
