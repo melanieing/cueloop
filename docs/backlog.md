@@ -265,7 +265,7 @@ v0.2.1을 심사 중 취소하고 아래 hide 기능을 더해 0.2.2로 bump →
 - [x] **신규 기능 문서·인앱 안내 반영** (2026-06-10) — 전 docs(README/CLAUDE/WEB_STORE_LISTING/PRIVACY_POLICY/mvp-plan/troubleshooting) + 옵션 onboarding 2단계 추가(ON/OFF 토글·자막 순서, 10→12단계) + FAQ "그냥 넷플릭스만 보고 싶을 때" 추가. PRIVACY_POLICY storage 권한·UI 설정값 명시.
 - [x] **🎬 이모지 → 서비스 아이콘** (2026-06-10) — 토글 버튼·onboarding·FAQ에 실제 아이콘 이미지 사용. `public/cueloop-icon.png`(원본·어두운, 128px) + `cueloop-icon-dark.png`(darkmode·밝은, 128px) 두 변형. content script 노출용 `web_accessible_resources`(netflix.com 한정) 추가. **대비 최적화**: ON 배경을 파스텔 연보라(`#C4B5FD`)+어두운 아이콘, OFF는 검정+밝은 아이콘으로 상태별 전환(원본 1024px/1.3MB는 128px/~10KB로 리사이즈). ※ manifest에 web_accessible_resources 신규 필드 — 제출 시 인지.
 - [x] **v0.2.5 zip 준비 완료** (2026-06-10) — `cueloop-0.2.5-chrome.zip` (onboarding/FAQ 반영 후 재zip). version bump 0.2.4→0.2.5, manifest에 storage 권한 포함 확인. WEB_STORE_LISTING에 storage 정당화 추가.
-- [x] **v0.2.5 심사 신청 완료** (2026-06-10) — devconsole 제출. storage 권한 정당화 + web_accessible_resources(아이콘) + 데이터 공개(웹사이트 콘텐츠만) 입력. 제목/요약도 갱신("내가 완성하는 자막으로 영화 100번 들어 외워버리기"). 권한 변경이라 심사 평소보다 길 수 있음 → 결과 대기.
+- [x] **v0.2.5 게시 완료** (심사 통과, 2026-06-14) — storage 권한 + web_accessible_resources(아이콘) 변경 포함했음에도 통과. 제목/요약 갱신("내가 완성하는 자막으로 영화 100번 들어 외워버리기"). 기존 사용자에게 자동 업데이트(같은 ID, IndexedDB 보존). 다음 누적은 v0.2.6으로 bump.
 
 ## v0.3 후보 — 자막 다국어 (Phase 2, 큰 작업)
 - 현재 데이터가 `Line.textEn`/`textKo` 2칸 하드코딩 → 일본어·중국어 등 임의 언어는 구조 변경 필요.
