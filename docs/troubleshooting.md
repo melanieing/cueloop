@@ -705,3 +705,44 @@ if (currentMovieId !== detail.movieId) {
 **교훈**: background SW에서 "사용자가 보는 탭"을 찾을 땐 `currentWindow` 금지(window 없음) → `lastFocusedWindow` 사용. 그리고 단일 신호(활성 탭)에만 의존하지 말고 도메인 특화 폴백(열린 watch 탭)을 둬서 회복력 확보. 실제 재생 중인 영상은 content script(location)가 가장 정확히 알지만, 그건 SW가 직접 못 보는 정보라 탭 쿼리로 근사.
 
 ---
+
+---
+
+### #28. Netflix manifest 자막 트랙 키 변경 (`timedtexttracks` → `textTracks`) — 자막 인제스트 전면 중단
+
+**발생**: 2026-09-20 (마지막 커밋 2026-06-14 이후 약 3개월 공백 중 Netflix가 변경)
+
+**증상**: Web Store v0.2.5 정식 버전에서 새 콘텐츠(수츠 2화) 재생 시 자막이 안 뜸. 사이드패널에 새 콘텐츠가 아예 안 생김. 새로고침해도 동일. **에러 로그 0** — 조용히 실패.
+
+**진단 경로** (단계별 로그로 범위 좁힘):
+1. 페이지 콘솔: `[Cueloop overlay] onMount` / `React rendered` 정상 → 확장 주입·오버레이는 멀쩡
+2. `[Cueloop overlay] loadLines ... fetched 0 lines` → DB에 라인 0개 = 인제스트 실패 확정
+3. `JSON.parse.toString().includes('cueloop')` → `true` = JSON.parse hijack 자체는 살아있음
+4. `[Cueloop] captured timedtext` **도** `ignoring timedtext` **도 없음** → URL 가드(#24)에 걸린 게 아니라 **캡처 조건 자체가 미스**
+5. 콘솔 탐침으로 `JSON.parse` 결과 중 `timedtext` 포함 문자열을 모아 키 구조 덤프 → `result.movieId`는 존재하는데 `result.timedtexttracks`가 없음. 대신 **`result.textTracks: array(36)`** 발견
+
+**원인**: Netflix가 manifest 응답 구조를 변경.
+
+| | 구 (v0.2.5 코드 기준) | 신 (2026-09~) |
+|---|---|---|
+| manifest 엔드포인트 | `.../cadmium/manifest` | `.../cadmium/licensedmanifest` (`mainContentViewableId` 파라미터) |
+| 자막 트랙 배열 | `result.timedtexttracks` | **`result.textTracks`** |
+| 트랙 내 다운로드 정보 | `ttDownloadables` | **`downloadables`** |
+| 다운로드 URL 경로 | `.urls[0].url` | `.urls[0].url` (동일) |
+| 자막 CDN 호스트 | `*.oca.nflxvideo.net` | 동일 (host_permissions 변경 불필요) |
+| 트랙 필드 | `language`, `languageDescription`, `isForcedNarrative`, `isNoneTrack` | 동일 (+ `id`, `trackType`, `downloadableIds`, `rank` 추가) |
+| 포맷 키 | `dfxp-ls-sdh` 등 | `imsc1.1`, `simplesdh` 관측 (FORMAT_PRIORITY에 이미 포함, 파서 수정 불필요) |
+
+`result.movieId`는 그대로라서 캡처 조건 `movieId != null && Array.isArray(timedtexttracks)`의 **앞 절반만 통과**하고 뒤에서 탈락 → `try/catch` 안이라 에러도 안 남고 전 캡처가 조용히 버려짐.
+
+**해결**:
+1. `inject.content.ts` — 키 이름 하드코딩 제거. `TRACK_KEY_RE = /^(?:timedtext|text)tracks$/i` + 깊이 우선 탐색(`scanForTracks`, depth ≤ 8)으로 트랙 배열을 찾고, ID도 `movieId → viewableId → mainContentViewableId → contentId → URL의 /watch/{id}` 순으로 폴백. 성능을 위해 파싱된 문자열에 `/texttracks/i`가 있을 때만 탐색(`texttracks`는 `timedtexttracks`의 부분 문자열이라 구/신 모두 매칭).
+2. `src/platforms/netflix-subtitles.ts` — `trackDownloads()` 헬퍼로 `ttDownloadables ?? downloadables` 흡수. 구/신 manifest 양쪽 호환.
+
+**교훈**:
+- **플랫폼 응답 구조에서 키 이름을 하드코딩하면 조용히 죽는다.** `try/catch` 안의 조건 미스는 에러도 안 남기므로 발견이 늦어짐. 이름 매칭은 정규식 + 깊이 탐색 + 폴백으로 짜서 다음 rename에 안 깨지게.
+- **실패를 시끄럽게 만들 것**: `/watch/` 페이지인데 일정 시간 캡처가 0건이면 경고 로그(또는 사이드패널 배너)를 띄우는 헬스체크가 있었으면 3개월이 아니라 당일에 발견됐을 것. → 백로그 항목으로 추가.
+- 진단 시 단계별 구분 로그(`captured` / `ignoring` / `processing` / `fetching`)가 결정적이었음. 로그 문구를 단계마다 다르게 둔 설계가 제값을 함.
+- **핫픽스 검증 시 version bump를 먼저 하라.** 수정 후 `build:win`까지 했는데 증상이 그대로여서 "패치가 틀렸나" 한 바퀴 돌았음. 실제 원인은 **새 빌드가 로드되지 않은 것**이었는데, 스토어판과 unpacked가 둘 다 `0.2.5`로 표시돼서 구분이 불가능했음. 이후 0.2.6 bump + inject 시작 로그에 빌드 식별자(`build: textTracks-aware v0.2.6`)를 넣자 한 번에 판별됨.
+- **확장을 새로고침해도 열려있는 탭의 content script는 갱신되지 않는다.** `document_start` 후킹이라 반드시 탭 F5. (확장 새로고침 ≠ 페이지 새로고침)
+- 3개월 공백 후 복귀 시엔 **기능 작업 전에 Netflix 경로 동작 확인**부터. CLAUDE.md의 "Netflix DOM 월 1-2회 변경" 경고는 DOM뿐 아니라 manifest API에도 적용됨.

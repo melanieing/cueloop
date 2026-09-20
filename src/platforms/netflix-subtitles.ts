@@ -12,9 +12,19 @@ interface NetflixDownloadFormat {
 interface NetflixTimedTextTrack {
   language?: string;
   languageDescription?: string;
+  /** 구 manifest (`result.timedtexttracks`) */
   ttDownloadables?: Record<string, NetflixDownloadFormat>;
+  /** 신 manifest (`result.textTracks`, 2026-09~) */
+  downloadables?: Record<string, NetflixDownloadFormat>;
   isForcedNarrative?: boolean;
   isNoneTrack?: boolean;
+}
+
+/** manifest 세대에 따라 다운로드 정보 필드명이 다르다 ([troubleshooting #28]) */
+function trackDownloads(
+  track: NetflixTimedTextTrack,
+): Record<string, NetflixDownloadFormat> | null {
+  return track.ttDownloadables ?? track.downloadables ?? null;
 }
 
 const FORMAT_PRIORITY = [
@@ -37,7 +47,7 @@ function classifyLanguage(lang: string | undefined): TargetLanguage | null {
 }
 
 function pickDfxpUrl(track: NetflixTimedTextTrack): string | null {
-  const downloads = track.ttDownloadables;
+  const downloads = trackDownloads(track);
   if (!downloads) return null;
   for (const format of FORMAT_PRIORITY) {
     const url = downloads[format]?.urls?.[0]?.url;
@@ -219,7 +229,7 @@ export async function ingestNetflixTracks(
   }
 
   const tracks = (rawTracks as NetflixTimedTextTrack[]).filter(
-    (t) => !t.isForcedNarrative && !t.isNoneTrack && t.ttDownloadables,
+    (t) => !t.isForcedNarrative && !t.isNoneTrack && trackDownloads(t) !== null,
   );
 
   const enTrack = tracks.find((t) => classifyLanguage(t.language) === 'en');

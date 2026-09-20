@@ -2,7 +2,7 @@
   "name": "cueloop",
   "description": "넷플릭스 자막을 내가 직접 고치고 채워 완성한 뒤, 좋아하는 장면을 한 줄씩 100번 반복해 듣고 따라 말하세요. 영화 한 편이 통째로 입에 붙고 외워집니다.",
   "private": true,
-  "version": "0.2.5",
+  "version": "0.2.6",
   "type": "module",
   "scripts": {
     "dev": "wxt",
