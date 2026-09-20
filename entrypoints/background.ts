@@ -308,6 +308,36 @@ export default defineBackground(() => {
       return true;
     }
 
+    if (message?.type === 'INGEST_HEALTH_CHECK') {
+      const { movieId, captured } = message.payload;
+      void (async () => {
+        const content = await db.contents
+          .where('[platform+contentId]')
+          .equals(['netflix', movieId])
+          .first();
+        const lineCount =
+          content?.id != null
+            ? await db.lines.where('contentId').equals(content.id).count()
+            : 0;
+        if (lineCount > 0) {
+          // 이전에 이미 인제스트됨 (manifest 재캡처가 없어도 정상).
+          sendResponse({ ok: true, healthy: true, lineCount });
+          return;
+        }
+        console.error(
+          `[Cueloop] ⚠ 인제스트 실패 감지 — movie ${movieId}: captured=${captured}, lines=0.` +
+            ' Netflix manifest 구조 변경 의심 (docs/troubleshooting.md #28)',
+        );
+        const notify: CueloopMessage = {
+          type: 'INGEST_HEALTH_WARNING',
+          payload: { movieId, captured },
+        };
+        await browser.runtime.sendMessage(notify).catch(() => {});
+        sendResponse({ ok: true, healthy: false });
+      })();
+      return true;
+    }
+
     if (message?.type === 'JUMP_TO_LINE') {
       const { contentId, startMs } = message.payload;
       void handleJumpToLine(contentId, startMs).then((result) => {

@@ -4,8 +4,8 @@
 
 ## 현재 상태
 
-- **단계**: v0.2 / **Web Store Phase 1 운영 중**. v0.2.0 → v0.2.2 → **v0.2.3 게시 완료**(자막 공유) → 라인 복사 등 묶어 **v0.2.4 제출(2026-06-07), 심사 대기**.
-- **마지막 업데이트**: 2026-06-07
+- **단계**: v0.2 / **Web Store Phase 1 운영 중**. v0.2.0 → … → **v0.2.5 게시 완료(2026-06-14)**. 현재 **v0.2.6 핫픽스 작업 중** (Netflix manifest 변경 대응, 아래 참조).
+- **마지막 업데이트**: 2026-09-20
 - **빌드 산출물**: `.output/chrome-mv3/` (production 빌드). dev watch는 WSL에서 작동 안 함 ([troubleshooting #5](./troubleshooting.md))
 - **핵심 차별점 (2가지)**:
   - CustomLoop (임의 A-B 구간 반복) — Day 2 schema 반영, Day 6 구현
@@ -266,6 +266,24 @@ v0.2.1을 심사 중 취소하고 아래 hide 기능을 더해 0.2.2로 bump →
 - [x] **🎬 이모지 → 서비스 아이콘** (2026-06-10) — 토글 버튼·onboarding·FAQ에 실제 아이콘 이미지 사용. `public/cueloop-icon.png`(원본·어두운, 128px) + `cueloop-icon-dark.png`(darkmode·밝은, 128px) 두 변형. content script 노출용 `web_accessible_resources`(netflix.com 한정) 추가. **대비 최적화**: ON 배경을 파스텔 연보라(`#C4B5FD`)+어두운 아이콘, OFF는 검정+밝은 아이콘으로 상태별 전환(원본 1024px/1.3MB는 128px/~10KB로 리사이즈). ※ manifest에 web_accessible_resources 신규 필드 — 제출 시 인지.
 - [x] **v0.2.5 zip 준비 완료** (2026-06-10) — `cueloop-0.2.5-chrome.zip` (onboarding/FAQ 반영 후 재zip). version bump 0.2.4→0.2.5, manifest에 storage 권한 포함 확인. WEB_STORE_LISTING에 storage 정당화 추가.
 - [x] **v0.2.5 게시 완료** (심사 통과, 2026-06-14) — storage 권한 + web_accessible_resources(아이콘) 변경 포함했음에도 통과. 제목/요약 갱신("내가 완성하는 자막으로 영화 100번 들어 외워버리기"). 기존 사용자에게 자동 업데이트(같은 ID, IndexedDB 보존). 다음 누적은 v0.2.6으로 bump.
+
+## v0.2.6 — Netflix manifest 변경 긴급 핫픽스 (2026-09-20)
+
+> ⚠ **v0.2.5 사용자 전원이 신규 콘텐츠 자막을 못 받는 상태.** Netflix가 3개월 공백 사이에 manifest 자막 트랙 키를 `result.timedtexttracks` → `result.textTracks`로 변경. 에러 없이 조용히 전 캡처가 버려짐. 상세: [troubleshooting #28](./troubleshooting.md)
+
+- [x] `inject.content.ts` — 트랙 키 하드코딩 제거. 정규식(`/^(?:timedtext|text)tracks$/i`) + 깊이 우선 탐색 + ID 폴백(`movieId → viewableId → mainContentViewableId → contentId → URL`). 다음번 rename에 안 깨지는 구조
+- [x] `netflix-subtitles.ts` — `trackDownloads()`로 `ttDownloadables ?? downloadables` 흡수 (구/신 manifest 동시 호환)
+- [x] `pnpm compile` 통과 + `pnpm build:win` 빌드 완료
+- [x] 빌드 식별 로그(`build: textTracks-aware v0.2.6`) + 캡처 실패 경고 추가 — 조용한 실패 방지
+- [x] **unpacked 실사용 검증 완료 (2026-09-20)** — 수츠 3화(70283147)에서 `captured timedtext (36 tracks)` → `fetched 1616 lines` 확인
+- [x] version bump 0.2.5 → 0.2.6 + `pnpm zip`
+- [ ] devconsole 업로드 + 검토용 제출 (권한/매니페스트 변경 **없음** → 가벼운 심사 예상)
+- [ ] 심사 통과 후 Web Store 버전 다시 활성화 (현재 0.2.5는 먹통 상태라 꺼둠)
+
+### 후속 (재발 방지) — v0.2.6에 포함
+- [x] **인제스트 헬스체크** — `/watch/` 진입 20초 후 자가 점검. content script가 `INGEST_HEALTH_CHECK`(movieId + 캡처 여부) 전송 → background가 DB 라인 수 확인 → 0건이면 SW 콘솔 `console.error` + `INGEST_HEALTH_WARNING` broadcast → 사이드패널 앰버 배너(새로고침 안내). 이미 인제스트된 콘텐츠는 재캡처 없어도 정상 처리(false positive 방지), `CONTENTS_UPDATED` 수신 시 배너 자동 해제. SPA 네비게이션 대응으로 URL 2초 폴링.
+- [x] inject 스크립트 캡처 실패 경고 — 자막이 있을 법한 응답인데 트랙 배열을 못 찾으면 최상위 키와 함께 `console.warn`
+- [ ] 복귀/장기 공백 후 체크리스트 — 기능 작업 전 Netflix 경로 스모크 테스트
 
 ## v0.3 후보 — 자막 다국어 (Phase 2, 큰 작업)
 - 현재 데이터가 `Line.textEn`/`textKo` 2칸 하드코딩 → 일본어·중국어 등 임의 언어는 구조 변경 필요.

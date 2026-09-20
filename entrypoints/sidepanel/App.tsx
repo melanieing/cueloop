@@ -161,6 +161,8 @@ export default function App() {
   // 사용자가 OFF 상태에서 라인을 눌렀을 때 안내 토스트를 띄우기 위해 추적.
   const [overlayEnabled, setOverlayEnabledState] = useState(true);
   const [offNotice, setOffNotice] = useState(false);
+  // 인제스트 실패 감지 배너 ([troubleshooting #28]) — 조용한 실패 방지
+  const [ingestWarning, setIngestWarning] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -242,6 +244,11 @@ export default function App() {
         setCurrentLineId(m.payload.lineId);
       } else if (m?.type === 'REPEATING_LINE_CHANGED') {
         setRepeatingLineId(m.payload.lineId);
+      } else if (m?.type === 'INGEST_HEALTH_WARNING') {
+        setIngestWarning(m.payload.movieId);
+      } else if (m?.type === 'CONTENTS_UPDATED') {
+        // 인제스트가 성공했으면 경고 배너는 스스로 사라진다.
+        setIngestWarning(null);
       }
     }
     browser.runtime.onMessage.addListener(handler);
@@ -1234,6 +1241,28 @@ export default function App() {
       {jumpError && (
         <div className="fixed bottom-4 left-4 right-4 bg-red-950/90 border border-red-800 text-red-100 text-xs rounded p-2 shadow-lg z-50">
           ⚠ {jumpError}
+        </div>
+      )}
+
+      {ingestWarning && (
+        <div className="fixed bottom-4 left-4 right-4 bg-amber-950/95 border border-amber-600 text-amber-50 text-xs rounded-lg p-3 shadow-xl z-50 flex items-start gap-2">
+          <span className="text-base leading-none">⚠</span>
+          <div className="flex-1 leading-snug">
+            <div className="font-semibold mb-0.5">자막을 가져오지 못했어요</div>
+            <div className="text-amber-200">
+              이 영상(<span className="font-mono">{ingestWarning}</span>)의 자막이 수집되지
+              않았어요. <b>페이지를 새로고침(F5)</b>하면 대부분 해결돼요. 계속 반복되면
+              Netflix 변경으로 확장 업데이트가 필요한 상태일 수 있어요.
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIngestWarning(null)}
+            className="text-amber-300 hover:text-white shrink-0"
+            title="닫기"
+          >
+            ✕
+          </button>
         </div>
       )}
 

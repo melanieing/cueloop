@@ -14,6 +14,12 @@ interface JumpResultDetail {
 
 const seenMovies = new Set<string>();
 
+/**
+ * /watch/ 진입 후 이 시간 안에 자막이 안 들어오면 실패로 간주한다.
+ * Netflix manifest 캡처 → background fetch → DB 저장까지 넉넉히 잡은 값.
+ */
+const HEALTH_CHECK_DELAY_MS = 20_000;
+
 function getPageTitleForMovie(movieId: string): string | undefined {
   const pathMatch = location.pathname.match(/^\/watch\/(\d+)/);
   if (!pathMatch) return undefined;
@@ -98,6 +104,37 @@ export default defineContentScript({
         });
       }, 300);
     });
+
+    // === 인제스트 헬스체크 ===
+    // 조용한 실패 방지 ([troubleshooting #28]). Netflix가 manifest 구조를 바꾸면
+    // 캡처 조건이 미스돼도 에러가 안 나서 3개월간 발견이 늦었다. /watch/ 진입 후
+    // 일정 시간 안에 자막이 안 들어오면 background에 자가 점검을 요청한다.
+    const healthScheduled = new Set<string>();
+
+    function scheduleHealthCheck(movieId: string) {
+      if (healthScheduled.has(movieId)) return;
+      healthScheduled.add(movieId);
+      setTimeout(() => {
+        // 그새 다른 콘텐츠로 옮겼으면 판단 근거가 없으니 건너뛴다.
+        if (currentMovieIdFromUrl() !== movieId) return;
+        const msg: CueloopMessage = {
+          type: 'INGEST_HEALTH_CHECK',
+          payload: { movieId, captured: seenMovies.has(movieId) },
+        };
+        browser.runtime.sendMessage(msg).catch(() => {});
+      }, HEALTH_CHECK_DELAY_MS);
+    }
+
+    // SPA 네비게이션은 content script를 재주입하지 않으므로 URL을 직접 관찰한다.
+    let lastWatchId: string | null = null;
+    function pollWatchId() {
+      const id = currentMovieIdFromUrl();
+      if (id === lastWatchId) return;
+      lastWatchId = id;
+      if (id) scheduleHealthCheck(id);
+    }
+    pollWatchId();
+    setInterval(pollWatchId, 2000);
 
     browser.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       const message = msg as CueloopMessage;

@@ -11,6 +11,16 @@ export type CueloopMessage =
       type: 'CONTENTS_UPDATED';
       payload: { contentId: number };
     }
+  /** content script → background: /watch/ 진입 후 자막이 들어왔는지 자가 점검 */
+  | {
+      type: 'INGEST_HEALTH_CHECK';
+      payload: { movieId: string; captured: boolean };
+    }
+  /** background → sidepanel: 인제스트 실패 감지 (조용한 실패 방지) */
+  | {
+      type: 'INGEST_HEALTH_WARNING';
+      payload: { movieId: string; captured: boolean };
+    }
   | {
       type: 'JUMP_TO_LINE';
       payload: {
