@@ -160,7 +160,11 @@ export default defineContentScript({
       }
       return data;
     };
-    console.log('[Cueloop] JSON.parse hijacked (MAIN world) — build: textTracks-aware v0.2.6');
+    // 어느 빌드가 돌고 있는지 바로 구분하기 위한 표식 (troubleshooting #28).
+    // 버전은 매니페스트에서 읽는다 — 손으로 적으면 bump할 때마다 어긋난다.
+    console.log(
+      `[Cueloop] JSON.parse hijacked (MAIN world) — v${browser.runtime.getManifest().version}`,
+    );
 
     window.addEventListener('cueloop/jump', (event) => {
       const detail = (event as CustomEvent<JumpDetail>).detail;
