@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type DailyGoal, type Content, type Line } from '@/src/db';
 import { todayKey } from '@/src/lib/dailyGoal';
 import { broadcastContentUpdate } from '@/src/lib/broadcastUpdate';
+import { sortContentsByTitle } from '@/src/lib/contentSort';
 import {
   getSubtitleOrder,
   setSubtitleOrder,
@@ -294,7 +295,7 @@ export default function App() {
   const [shareImporting, setShareImporting] = useState(false);
 
   const contents = useLiveQuery(async () =>
-    db.contents.orderBy('createdAt').reverse().toArray(),
+    sortContentsByTitle(await db.contents.toArray()),
   );
 
   const targetMinutes = useLiveQuery(async () => {
