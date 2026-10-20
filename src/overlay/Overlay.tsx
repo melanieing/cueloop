@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Line } from '@/src/db';
 import type { CueloopMessage } from '@/src/messages';
+import { noteSendFailure } from '@/src/lib/runtimeError';
 import {
   getOverlayEnabled,
   onOverlayEnabledChange,
@@ -98,7 +99,7 @@ function incrementListen(lineId: number): void {
     type: 'INCREMENT_LINE_LISTEN',
     payload: { lineId },
   };
-  void browser.runtime.sendMessage(msg).catch(() => {});
+  void browser.runtime.sendMessage(msg).catch(noteSendFailure);
 }
 
 function incrementCustomLoopListen(loopId: number): void {
@@ -106,7 +107,26 @@ function incrementCustomLoopListen(loopId: number): void {
     type: 'INCREMENT_CUSTOM_LOOP_LISTEN',
     payload: { loopId },
   };
-  void browser.runtime.sendMessage(msg).catch(() => {});
+  void browser.runtime.sendMessage(msg).catch(noteSendFailure);
+}
+
+/** 누적 청취 횟수(100LS 진행도). DB는 extension origin이라 background에 물어본다. */
+async function fetchListenCount(
+  kind: 'line' | 'custom',
+  id: number,
+): Promise<number | null> {
+  const msg: CueloopMessage = {
+    type: 'GET_LISTEN_COUNT',
+    payload: { kind, id },
+  };
+  try {
+    const resp = (await browser.runtime.sendMessage(msg)) as
+      | { ok?: boolean; listenCount?: number }
+      | undefined;
+    return resp?.ok && typeof resp.listenCount === 'number' ? resp.listenCount : null;
+  } catch {
+    return null;
+  }
 }
 
 async function addCustomLoop(
@@ -133,7 +153,7 @@ async function updateCustomLoopLabel(loopId: number, label: string): Promise<voi
     type: 'UPDATE_CUSTOM_LOOP_LABEL',
     payload: { loopId, label },
   };
-  await browser.runtime.sendMessage(msg).catch(() => {});
+  await browser.runtime.sendMessage(msg).catch(noteSendFailure);
 }
 
 function netflixSeek(startMs: number): void {
@@ -206,6 +226,9 @@ export function Overlay({ video }: OverlayProps) {
   const [toastText, setToastText] = useState('');
   const [repeating, setRepeating] = useState<Repeating | null>(null);
   const [repeatCount, setRepeatCount] = useState(0);
+  // 누적 청취 횟수(100LS 진행도). 반복 시작 시 조회하고, 한 바퀴 돌 때마다 낙관적 +1.
+  // repeatCount(이번 세션)와 의미가 다르다 — 큰 숫자는 누적이어야 100LS 진도와 맞는다.
+  const [cumulativeCount, setCumulativeCount] = useState<number | null>(null);
   const [pendingStartMs, setPendingStartMs] = useState<number | null>(null);
 
   const linesRef = useRef<Line[]>([]);
@@ -347,6 +370,7 @@ export function Overlay({ video }: OverlayProps) {
       } else if (timeMs >= endMs && !seekCooldownActive) {
         repeatCountRef.current += 1;
         setRepeatCount(repeatCountRef.current);
+        setCumulativeCount((c) => (c == null ? c : c + 1));
         if (rep.kind === 'line' && rep.line.id != null) {
           incrementListen(rep.line.id);
         } else if (rep.kind === 'custom') {
@@ -382,7 +406,7 @@ export function Overlay({ video }: OverlayProps) {
               type: 'CURRENT_LINE_CHANGED',
               payload: { lineId },
             };
-            void browser.runtime.sendMessage(notify).catch(() => {});
+            void browser.runtime.sendMessage(notify).catch(noteSendFailure);
           }
         }
       }
@@ -403,7 +427,15 @@ export function Overlay({ video }: OverlayProps) {
       type: 'REPEATING_LINE_CHANGED',
       payload: { lineId },
     };
-    browser.runtime.sendMessage(msg).catch(() => {});
+    browser.runtime.sendMessage(msg).catch(noteSendFailure);
+
+    // CustomLoop은 라벨이 길 수 있어 오버레이에 띄우지 않는다. 대신 사이드패널
+    // "내 구간" 목록에서 현재 반복 중인 항목을 하이라이트한다.
+    const loopMsg: CueloopMessage = {
+      type: 'REPEATING_CUSTOM_LOOP_CHANGED',
+      payload: { loopId: repeating?.kind === 'custom' ? repeating.loopId : null },
+    };
+    browser.runtime.sendMessage(loopMsg).catch(noteSendFailure);
   }, [repeating]);
 
   // 일일 학습 시간 측정 — 영상 재생 중 + 탭 visible + window focus 모두 충족할 때만 1초씩 누적.
@@ -419,7 +451,7 @@ export function Overlay({ video }: OverlayProps) {
         type: 'SESSION_TICK',
         payload: { seconds: sec },
       };
-      await browser.runtime.sendMessage(msg).catch(() => {});
+      await browser.runtime.sendMessage(msg).catch(noteSendFailure);
     }
     const interval = window.setInterval(() => {
       if (
@@ -703,17 +735,39 @@ export function Overlay({ video }: OverlayProps) {
     [lines],
   );
 
+  // `repeating`은 모든 시작/정지 지점에서 setRepeating으로 갱신되므로, 여기서 한 번만
+  // 누적값을 따라가면 된다 (시작 지점 8곳을 각각 고치지 않아도 됨).
+  useEffect(() => {
+    if (!repeating) {
+      setCumulativeCount(null);
+      return;
+    }
+    const id = repeating.kind === 'line' ? repeating.line.id : repeating.loopId;
+    if (id == null) {
+      setCumulativeCount(null);
+      return;
+    }
+    let alive = true;
+    void fetchListenCount(repeating.kind, id).then((n) => {
+      if (alive) setCumulativeCount(n);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [repeating]);
+
   const repeatingKind = repeating?.kind;
+  // 마일스톤 색도 누적 기준 — 100LS 진도를 나타내야 의미가 있다.
+  const milestoneBase = cumulativeCount ?? 0;
   const counterColor =
-    repeatCount >= 100
+    milestoneBase >= 100
       ? '#a78bfa'
-      : repeatCount >= 50
+      : milestoneBase >= 50
         ? '#34d399'
         : repeatingKind === 'custom'
           ? '#c4b5fd'
           : '#fde68a';
   const counterPrefix = repeatingKind === 'custom' ? '🔁 [Custom] ' : '🔁 ';
-  const customLabel = repeating?.kind === 'custom' ? repeating.label : undefined;
 
   return (
     <>
@@ -792,35 +846,39 @@ export function Overlay({ video }: OverlayProps) {
         <div
           style={{
             position: 'fixed',
-            bottom: '4%',
+            bottom: '1.5%',
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 2147483646,
             pointerEvents: 'none',
             background: 'rgba(0,0,0,0.75)',
             color: counterColor,
-            padding: '10px 28px',
+            padding: '5px 16px',
             borderRadius: '999px',
             fontFamily: 'system-ui, sans-serif',
-            fontSize: '2.75rem',
+            // 자막(영 3.375rem / 한 2.625rem)을 가리지 않도록 작게. 한 줄 고정.
+            fontSize: '1.375rem',
             fontWeight: 700,
             letterSpacing: '0.02em',
             textShadow: '0 0 6px rgba(0,0,0,0.95)',
+            display: 'flex',
+            alignItems: 'baseline',
+            gap: '0.5em',
+            whiteSpace: 'nowrap',
           }}
         >
-          {counterPrefix}{repeatCount} / 100
-          {customLabel && (
-            <div
-              style={{
-                fontSize: '1rem',
-                fontWeight: 500,
-                color: 'rgba(255,255,255,0.7)',
-                marginTop: '2px',
-              }}
-            >
-              {customLabel}
-            </div>
-          )}
+          <span>
+            {counterPrefix}{cumulativeCount ?? 0} / 100
+          </span>
+          <span
+            style={{
+              fontSize: '0.72em',
+              fontWeight: 600,
+              color: 'rgba(255,255,255,0.72)',
+            }}
+          >
+            이번 {repeatCount}회
+          </span>
         </div>
       )}
 

@@ -177,6 +177,106 @@ function setupToggleButton(ctx: { onInvalidated: (cb: () => void) => void }): vo
   });
 }
 
+/**
+ * 확장 컨텍스트 무효화 안내 배너.
+ *
+ * 확장이 업데이트(스토어 자동 업데이트 포함)되거나 리로드되면, 이미 열려 있던 탭의
+ * content script는 재주입되지 않고 런타임 연결만 끊긴다. 오버레이·단축키·자동 스크롤이
+ * 전부 조용히 죽는데 화면엔 아무 표시가 없어 원인을 알 수 없다 (2026-09-23 실제 발생,
+ * troubleshooting #29). 새로고침하면 된다는 것만 알려주면 되는 문제라 배너로 안내한다.
+ *
+ * 이 시점엔 확장 API(browser.runtime.getURL 등)를 쓸 수 없으므로 순수 DOM만 사용한다.
+ *
+ * ⚠ WXT의 무효화 감지는 **push가 아니라 pull**이다. `ctx.isInvalid` getter가
+ * `browser.runtime?.id == null`을 검사할 때만 `notifyInvalidated()`가 불린다
+ * (wxt/dist/utils/content-script-context.mjs). 즉 아무도 `ctx.isValid`를 읽지 않으면
+ * `onInvalidated`는 영원히 안 불린다. `ctx.setInterval`은 내부에서 읽지만 우리는
+ * `window.setInterval`을 쓰고 있어 감지가 안 됐다 → 여기서 직접 폴링한다.
+ */
+function setupInvalidationNotice(ctx: {
+  onInvalidated: (cb: () => void) => void;
+}): void {
+  // 페이지를 떠나는 중에도 invalidate가 불릴 수 있다 — 그땐 배너가 의미 없다.
+  let unloading = false;
+  const markUnloading = () => {
+    unloading = true;
+  };
+  window.addEventListener('beforeunload', markUnloading);
+  window.addEventListener('pagehide', markUnloading);
+
+  function runtimeGone(): boolean {
+    try {
+      return browser.runtime?.id == null;
+    } catch {
+      // 무효화된 컨텍스트에선 접근 자체가 throw할 수 있다.
+      return true;
+    }
+  }
+
+  function showNotice() {
+    if (unloading || document.getElementById('cueloop-invalidated')) return;
+
+    const box = document.createElement('div');
+    box.id = 'cueloop-invalidated';
+    Object.assign(box.style, {
+      position: 'fixed',
+      top: '16px',
+      left: '50%',
+      transform: 'translateX(-50%)',
+      zIndex: '2147483647',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '10px',
+      maxWidth: 'min(560px, calc(100vw - 32px))',
+      padding: '12px 16px',
+      borderRadius: '10px',
+      border: '1px solid rgba(251,191,36,0.6)',
+      background: 'rgba(28,25,23,0.96)',
+      color: '#fef3c7',
+      fontFamily: 'system-ui, sans-serif',
+      fontSize: '14px',
+      lineHeight: '1.4',
+      boxShadow: '0 4px 20px rgba(0,0,0,0.6)',
+      pointerEvents: 'auto',
+    } as CSSStyleDeclaration);
+
+    const text = document.createElement('div');
+    text.style.flex = '1';
+    text.innerHTML =
+      '<b>Cueloop이 업데이트됐어요</b><br>' +
+      '이 탭에서는 자막·단축키가 멈춰 있어요. <b>F5</b>로 새로고침하면 다시 동작해요.';
+
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.textContent = '\u2715';
+    Object.assign(close.style, {
+      background: 'transparent',
+      border: 'none',
+      color: '#fcd34d',
+      cursor: 'pointer',
+      fontSize: '15px',
+      lineHeight: '1',
+      padding: '2px 4px',
+      flex: '0 0 auto',
+    } as CSSStyleDeclaration);
+    close.addEventListener('click', () => box.remove());
+
+    box.append(text, close);
+    (document.fullscreenElement ?? document.body).appendChild(box);
+  }
+
+  // WXT가 먼저 감지하는 경로(dev 재주입 등)도 잡아둔다.
+  ctx.onInvalidated(showNotice);
+
+  // 실제 감지는 이 폴링이 담당 — 확장 리로드/자동 업데이트는 아무 이벤트도 안 준다.
+  const poll = window.setInterval(() => {
+    if (!runtimeGone()) return;
+    window.clearInterval(poll);
+    showNotice();
+  }, 3000);
+  ctx.onInvalidated(() => window.clearInterval(poll));
+}
+
 export default defineContentScript({
   // 모든 netflix 페이지에 로드 — Netflix는 SPA라 /browse → /watch/ 이동이
   // 클라이언트 네비게이션(history.pushState)이고 Chrome MV3는 SPA 네비게이션 시
@@ -187,6 +287,7 @@ export default defineContentScript({
   runAt: 'document_idle',
   async main(ctx) {
     console.log('[Cueloop overlay] main() start, location=', location.href);
+    setupInvalidationNotice(ctx);
     setupToggleButton(ctx);
     try {
       const ui = await createShadowRootUi(ctx, {

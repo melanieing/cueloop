@@ -150,6 +150,7 @@ export default function App() {
   const progressMap = useLineProgressMap(effectiveContentId ?? undefined);
   const [currentLineId, setCurrentLineId] = useState<number | null>(null);
   const [repeatingLineId, setRepeatingLineId] = useState<number | null>(null);
+  const [repeatingLoopId, setRepeatingLoopId] = useState<number | null>(null);
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
   const [editingLineId, setEditingLineId] = useState<number | null>(null);
   const [hideMemorized, setHideMemorized] = useState(false);
@@ -244,6 +245,8 @@ export default function App() {
         setCurrentLineId(m.payload.lineId);
       } else if (m?.type === 'REPEATING_LINE_CHANGED') {
         setRepeatingLineId(m.payload.lineId);
+      } else if (m?.type === 'REPEATING_CUSTOM_LOOP_CHANGED') {
+        setRepeatingLoopId(m.payload.loopId);
       } else if (m?.type === 'INGEST_HEALTH_WARNING') {
         setIngestWarning(m.payload.movieId);
       } else if (m?.type === 'CONTENTS_UPDATED') {
@@ -975,7 +978,10 @@ export default function App() {
         </div>
       )}
 
-      <CustomLoopList contentId={effectiveContentId ?? null} />
+      <CustomLoopList
+        contentId={effectiveContentId ?? null}
+        repeatingLoopId={repeatingLoopId}
+      />
 
       {insertOpen && effectiveContentId != null && (
         <InsertLineModal

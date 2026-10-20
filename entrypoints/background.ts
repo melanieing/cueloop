@@ -1,5 +1,6 @@
 import type { CueloopMessage } from '@/src/messages';
 import { ingestNetflixTracks } from '@/src/platforms/netflix-subtitles';
+import { deriveLoopLabel } from '@/src/lib/customLoopLabel';
 import { db } from '@/src/db';
 import {
   addAchievedSeconds,
@@ -365,10 +366,13 @@ export default defineBackground(() => {
           sendResponse({ ok: false, error: 'content not found' });
           return;
         }
+        // 라벨 기본값 = 이 구간의 첫 영어 자막. 없으면 undefined(라벨 없음).
+        const label = await deriveLoopLabel(content.id, startMs, endMs);
         const id = await db.customLoops.add({
           contentId: content.id,
           startMs,
           endMs,
+          label,
           listenCount: 0,
           isMemorized: 0,
           createdAt: Date.now(),
@@ -609,6 +613,20 @@ export default defineBackground(() => {
         const { justCompleted } = await addAchievedSeconds(seconds);
         if (justCompleted) void onGoalCompletedTransition();
         sendResponse({ ok: true });
+      })();
+      return true;
+    }
+
+    if (message?.type === 'GET_LISTEN_COUNT') {
+      const { kind, id } = message.payload;
+      void (async () => {
+        if (kind === 'custom') {
+          const loop = await db.customLoops.get(id);
+          sendResponse({ ok: true, listenCount: loop?.listenCount ?? 0 });
+        } else {
+          const prog = await db.lineProgress.get(id);
+          sendResponse({ ok: true, listenCount: prog?.listenCount ?? 0 });
+        }
       })();
       return true;
     }

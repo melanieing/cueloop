@@ -283,6 +283,12 @@ v0.2.1을 심사 중 취소하고 아래 hide 기능을 더해 0.2.2로 bump →
 ### 후속 (재발 방지) — v0.2.6에 포함
 - [x] **인제스트 헬스체크** — `/watch/` 진입 20초 후 자가 점검. content script가 `INGEST_HEALTH_CHECK`(movieId + 캡처 여부) 전송 → background가 DB 라인 수 확인 → 0건이면 SW 콘솔 `console.error` + `INGEST_HEALTH_WARNING` broadcast → 사이드패널 앰버 배너(새로고침 안내). 이미 인제스트된 콘텐츠는 재캡처 없어도 정상 처리(false positive 방지), `CONTENTS_UPDATED` 수신 시 배너 자동 해제. SPA 네비게이션 대응으로 URL 2초 폴링.
 - [x] inject 스크립트 캡처 실패 경고 — 자막이 있을 법한 응답인데 트랙 배열을 못 찾으면 최상위 키와 함께 `console.warn`
+- [x] **확장 컨텍스트 무효화 안내** ([troubleshooting #29](./troubleshooting.md)) — 확장 업데이트/리로드 시 열려 있던 탭의 content script가 고아가 되어 오버레이만 조용히 죽는 문제. `ctx.onInvalidated`에서 "F5로 새로고침" 배너(순수 DOM) + `noteSendFailure()`로 컨텍스트 무효화 에러를 1회 경고. 스토어 자동 업데이트 때도 동일하게 발생하므로 0.2.6에 포함.
+- [x] **"내 구간" 삭제/라벨 수정 불가 버그** ([troubleshooting #30](./troubleshooting.md)) — Chrome 네이티브 `confirm`/`prompt`가 "추가 대화 표시 안 함" 체크 후 즉시 false/null을 반환해 조용히 무력화됨. `CustomLoopList.tsx`를 인라인 확인/입력 UI로 교체.
+- [x] **구간 라벨 기본값 = 첫 영어 자막** — `src/lib/customLoopLabel.ts`의 `deriveLoopLabel()`. 구간과 **겹치는**(포함 아님 — 구간이 라인 중간에서 시작할 수 있음) 라인 중 가장 이른 것의 `textEn`, 숨긴 라인 제외, 60자 초과 시 말줄임. B키 생성 시 background가 부여하고, 라벨 없는 기존 구간은 ✎ 라벨 편집 시 기본값으로 채움. 영어 자막 없는 구간은 그대로 "(라벨 없음)".
+- [x] **오버레이 반복 카운터를 누적 기준으로 수정** — 기존엔 큰 글씨 `N / 100`의 분자가 **이번 세션** 카운터(`repeatCount`, 반복 시작마다 0으로 리셋)인데 분모가 100LS 목표치여서 진행도로 오독됐음(사이드패널 행의 누적값과 불일치). 큰 숫자를 **누적**(`GET_LISTEN_COUNT`로 조회, 한 바퀴마다 낙관적 +1)으로 바꾸고 아래 작은 줄에 `이번 N회` 추가. 마일스톤 색상(50/100)도 누적 기준으로. 구현은 `repeating` state 변화에 반응하는 effect 하나로 처리 — 반복 시작 지점 8곳은 미수정.
+- [ ] **후속**: `Overlay.tsx` S키 라벨 입력도 `window.prompt` → 오버레이 인라인 input으로 교체 (Shadow DOM의 `isTypingInInput()` 보정 필요)
+- [x] **작품 목록 정렬 변경** — 최신순(`createdAt` 역순) → **제목 가나다/알파벳순**. `src/lib/contentSort.ts`의 `compareContentTitle`(로케일 'ko', `numeric: true`, `sensitivity: 'base'`)을 사이드패널 드롭다운·옵션 페이지 목록 양쪽에 적용.
 - [ ] 복귀/장기 공백 후 체크리스트 — 기능 작업 전 Netflix 경로 스모크 테스트
 
 ## v0.3 후보 — 자막 다국어 (Phase 2, 큰 작업)

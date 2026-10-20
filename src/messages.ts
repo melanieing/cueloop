@@ -50,6 +50,11 @@ export type CueloopMessage =
       type: 'INCREMENT_LINE_LISTEN';
       payload: { lineId: number };
     }
+  /** 오버레이 카운터용 — 누적 청취 횟수(100LS 진행도) 조회 */
+  | {
+      type: 'GET_LISTEN_COUNT';
+      payload: { kind: 'line' | 'custom'; id: number };
+    }
   | {
       type: 'ADD_CUSTOM_LOOP';
       payload: { movieId: string; startMs: number; endMs: number };
@@ -106,6 +111,11 @@ export type CueloopMessage =
   | {
       type: 'REPEATING_LINE_CHANGED';
       payload: { lineId: number | null };
+    }
+  /** 사이드패널 "내 구간" 목록에서 현재 반복 중인 구간을 표시하기 위한 알림 */
+  | {
+      type: 'REPEATING_CUSTOM_LOOP_CHANGED';
+      payload: { loopId: number | null };
     }
   | {
       type: 'SESSION_TICK';

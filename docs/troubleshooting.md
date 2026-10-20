@@ -746,3 +746,56 @@ if (currentMovieId !== detail.movieId) {
 - **핫픽스 검증 시 version bump를 먼저 하라.** 수정 후 `build:win`까지 했는데 증상이 그대로여서 "패치가 틀렸나" 한 바퀴 돌았음. 실제 원인은 **새 빌드가 로드되지 않은 것**이었는데, 스토어판과 unpacked가 둘 다 `0.2.5`로 표시돼서 구분이 불가능했음. 이후 0.2.6 bump + inject 시작 로그에 빌드 식별자(`build: textTracks-aware v0.2.6`)를 넣자 한 번에 판별됨.
 - **확장을 새로고침해도 열려있는 탭의 content script는 갱신되지 않는다.** `document_start` 후킹이라 반드시 탭 F5. (확장 새로고침 ≠ 페이지 새로고침)
 - 3개월 공백 후 복귀 시엔 **기능 작업 전에 Netflix 경로 동작 확인**부터. CLAUDE.md의 "Netflix DOM 월 1-2회 변경" 경고는 DOM뿐 아니라 manifest API에도 적용됨.
+
+---
+
+### #29. 확장 리로드/업데이트 후 오버레이만 조용히 죽음 (고아 content script)
+
+**발생**: 2026-09-23, #28 핫픽스 검증 중
+
+**증상**: 수츠 1-3에서 사이드패널 자막 목록은 정상인데 **화면 자막·자동 스크롤·H/E 단축키가 전부 무반응**. 라인 클릭 점프는 정상 동작. 에러 로그 0건. 확장 새로고침 + 탭 F5로도 안 고쳐졌고, **크롬을 완전히 닫았다 켜니 정상 복구**.
+
+**진단 과정에서 배제된 것**:
+- 엉뚱한 `<video>` 바인딩 → `querySelectorAll('video')` 결과 1개, `currentTime` 정상 진행
+- 라인 미수신 → `fetched 1616 lines`
+- 시각 매칭 실패 → `findCurrentLineIdx`는 `displayEndMs = 다음 라인 startMs`라 재생 중엔 사실상 항상 매칭됨
+- **ON/OFF 토글 OFF → 배제됨.** `overlayEnabled`는 `chrome.storage.local`에 저장되어 브라우저 재시작에도 유지되는데, 재시작으로 고쳐졌으므로 persist된 상태가 원인이 아님
+
+**원인**(정황 근거, 재현 증거는 리로드로 소실): 진단하느라 unpacked 확장을 여러 번 리로드하는 동안 열려 있던 넷플릭스 탭에 **런타임 연결이 끊긴 content script가 남음**("Extension context invalidated"). 증상 분포가 정확히 이 그림 — `<Overlay>` 안의 모든 기능(자막 렌더·rAF·단축키·`CURRENT_LINE_CHANGED`)은 죽고, Overlay 밖 경로(inject.js의 Netflix Player API seek)는 살아있음. 우리 코드가 `.catch(() => {})`로 20곳에서 에러를 삼켜 아무 신호도 안 남았음.
+
+**실사용자에게도 해당됨**: 수동 리로드뿐 아니라 **Chrome이 확장을 자동 업데이트할 때 동일**. 넷플릭스를 열어둔 채 업데이트가 배포되면 그 탭은 새로고침 전까지 먹통이고 이유 표시가 없음.
+
+**해결** (v0.2.6에 포함):
+1. `overlay.content/index.tsx` — `setupInvalidationNotice()`. `ctx.onInvalidated`에서 "Cueloop이 업데이트됐어요 / F5로 새로고침하면 다시 동작해요" 배너를 순수 DOM으로 띄움(이 시점엔 확장 API 사용 불가). `beforeunload`/`pagehide` 중이면 표시 안 함.
+2. `src/lib/runtimeError.ts` — `noteSendFailure()`. sendMessage 실패 중 컨텍스트 무효화만 골라 1회 경고. "수신측 없음"(사이드패널 닫힘 등 정상 상황)은 기존대로 무시. Overlay.tsx의 sendMessage catch 6곳에 적용.
+
+**교훈**:
+- **`.catch(() => {})`는 진단을 불가능하게 만든다.** 정상적으로 흔한 실패(수신측 없음)와 비정상 실패(컨텍스트 무효화)를 구분해서, 후자는 반드시 흔적을 남길 것.
+- 개발 중 확장을 리로드했으면 **열려 있던 탭은 F5가 아니라 닫았다 여는 편이 확실**하다. 원인 모를 먹통을 만나면 브라우저 재시작으로 "persist된 상태 vs 런타임 상태"를 가를 수 있다 (진단 가치가 큼).
+- 증상이 "일부만 죽음"일 때 **죽은 것과 산 것의 경계선**을 먼저 그릴 것. 여기선 그 경계가 정확히 `<Overlay>` 컴포넌트 경계였고, 그게 결정적 단서였다.
+
+---
+
+### #30. "내 구간" 삭제가 안 됨 — Chrome의 "추가 대화 표시 안 함"이 `window.confirm`을 무력화
+
+**발생**: 2026-10-15
+
+**증상**: 사이드패널 "🔁 내 구간"(CustomLoop)의 빨간 🗑 버튼을 눌러도 아무 일도 안 일어남. 사용자 증언: "원래 뜨던 확인 팝업에 '계속 뜨지 않게 하기' 체크박스가 있어서 실수로 눌렀더니 그 뒤로 팝업이 안 뜨고 삭제도 안 된다."
+
+**원인**: 그 체크박스는 **우리 UI가 아니라 Chrome 네이티브 다이얼로그의 체크박스**("이 페이지에서 추가 대화를 표시하지 않도록 하기"). 한 번 체크되면 그 document에서 `window.confirm`은 **다이얼로그를 띄우지 않고 즉시 `false`를 반환**하고 `window.prompt`는 `null`을 반환한다.
+
+`CustomLoopList.tsx`의 삭제는 네이티브 `confirm`에 의존했다:
+```ts
+if (!window.confirm(`이 구간을 삭제할까요?...`)) return;  // 항상 여기서 return
+```
+→ 확인창도 안 뜨고 삭제도 안 되고, 사용자 입장에선 되돌릴 방법도 안 보임. 같은 파일의 라벨 수정(`window.prompt`)도 동일하게 조용히 무력화됨.
+
+**해결**: `CustomLoopList.tsx`에서 네이티브 다이얼로그 전면 제거. 행 안에서 모드 전환(`idle | confirm | label`)으로 처리 — 삭제는 "이 구간을 삭제할까요? [삭제] [취소]" 인라인 확인, 라벨은 인라인 input(Enter 저장 / Esc 취소). 라인 삭제(`App.tsx`)는 원래부터 in-page 모달이었고, CustomLoop만 네이티브로 남아 있었음.
+
+**임시 복구**(구버전 사용자): 사이드패널을 닫았다 다시 열면 Chrome의 다이얼로그 억제가 해제된다(document 단위).
+
+**남은 노출**: `src/overlay/Overlay.tsx`의 `S` 키 CustomLoop 라벨 입력이 아직 `window.prompt`. netflix.com 페이지에서 사용자가 같은 체크박스를 누르면 라벨 저장이 조용히 안 먹는다. 오버레이는 Shadow DOM이라 인라인 input으로 바꿀 때 `isTypingInInput()`이 `document.activeElement`만 보는 문제(shadow 내부 input은 host로 보임)를 함께 고쳐야 함 → 별도 작업으로 분리.
+
+**교훈**:
+- **확장 UI에서 `window.confirm`/`prompt`/`alert`는 쓰지 말 것.** 사용자가 억제를 켜면 되돌릴 UI가 없고, 실패가 "아무 반응 없음"으로 나타나 원인 추적이 거의 불가능하다. 억제 상태를 코드로 감지할 방법도 없다(취소와 구분 불가).
+- 이것도 [#28](조용한 캡처 실패), [#29](조용한 컨텍스트 무효화)와 같은 계열 — **실패가 아무 신호도 남기지 않는 설계**가 반복적으로 비용을 만들고 있다. 새 기능에 "실패 시 사용자가 뭘 보게 되는가"를 체크 항목으로.
