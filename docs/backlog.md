@@ -278,7 +278,15 @@ v0.2.1을 심사 중 취소하고 아래 hide 기능을 더해 0.2.2로 bump →
 - [x] 일시정지 상태에서 반복 시작 시 재생 재개 (`seek()`는 재생을 시작하지 않음)
 - [x] 반복 중 버퍼링 무한 루프 수정 (시간 쿨다운 → seek 안착 확인 + `video.seeking`/`readyState` 가드)
 - [x] 사용자 검증 완료 (2026-10-21)
-- [ ] **devconsole 업로드 + 제출** — `cueloop-0.2.8-chrome.zip`
+- [x] **devconsole 업로드 + 제출 완료 (2026-10-21)** — `cueloop-0.2.8-chrome.zip`
+- [x] **재발 방지 장치** ([troubleshooting #31](./troubleshooting.md)):
+  - `scripts/check-main-world.mjs` — `world: 'MAIN'` 엔트리포인트의 확장 API 사용 시 빌드 실패. 주석은 제외하고 검사
+  - `scripts/verify-build.mjs` — 빌드 **산출물**에 `cueloop/jump`·`cueloop/timedtext` 리스너가 실제로 들어갔는지 + 확장 API 흔적이 없는지 검사. ⚠ WXT가 번들에서 `browser`를 지역 변수로 renaming하므로 `browser.`가 아니라 `getManifest`·`.runtime.` 같은 **속성 이름**으로 찾아야 한다(실측 확인)
+  - `pnpm build` / `build:win` / `zip` 모두에 연결 — 검사 실패 시 Windows 폴더 복사·zip 생성 전에 중단
+  - **가드 자체를 역검증함**: 버그를 일부러 재주입해 두 검사가 모두 exit 1을 내는 것 확인, 정상 빌드에선 통과 확인
+  - `content.ts` — seek 타임아웃 시 "inject 리스너 미등록 의심" 원인 지목 로그(1회)
+  - `docs/RELEASE_CHECKLIST.md` — 사람만 확인 가능한 수동 4가지(자막/이동/반복/단축키)
+  - `CLAUDE.md` 잠재적 함정 #9·#10 추가
 
 ## v0.2.7 — Netflix manifest 변경 긴급 핫픽스 + UI 개선 (2026-09-20 ~ 10-21, 게시됨)
 

@@ -83,11 +83,14 @@ cueloop/
 ## 자주 쓰는 명령어
 
 ```bash
-pnpm dev              # 개발 빌드 + Chrome 자동 로드
-pnpm build            # 프로덕션 빌드
-pnpm zip              # Web Store용 zip
-pnpm tsc --noEmit     # 타입 체크
+pnpm dev              # 개발 빌드 + Chrome 자동 로드 (WSL에서는 즉시 종료됨 — build:win 사용)
+pnpm build:win        # 프로덕션 빌드 + 가드 검사 + Windows 폴더로 복사
+pnpm zip              # 가드 검사 + Web Store용 zip
+pnpm verify           # 가드 검사만 (MAIN world 확장 API + 빌드 산출물)
+pnpm compile          # 타입 체크 (tsc --noEmit)
 ```
+
+게시 전에는 `docs/RELEASE_CHECKLIST.md`의 수동 4가지를 반드시 확인한다.
 
 ## 잠재적 함정 (반드시 알아둘 것)
 
@@ -99,6 +102,8 @@ pnpm tsc --noEmit     # 타입 체크
 6. **`host_permissions`**: 절대 `<all_urls>` 안 됨. 정확히 `https://*.netflix.com/*`만. Web Store 자동 거절 사유.
 7. **마이크 권한은 사이드 패널에서 요청**: 콘텐츠 스크립트에서 `getUserMedia` 호출하면 host(Netflix)에 권한이 묶임.
 8. **`pnpm dev`는 unpacked로 자동 로드**: Chrome v134+는 Developer Mode가 켜져 있어야 작동.
+9. **`world: 'MAIN'` 엔트리포인트에서 `browser.*`/`chrome.*` 금지**: 페이지 컨텍스트라 확장 API가 **없다**. 건드리면 throw하고 `main()`의 나머지(리스너 등록 포함)가 **조용히** 죽는다. WXT는 world와 무관하게 `browser`를 전역 노출하므로 타입 체크로 안 걸러진다. 필요한 값은 `wxt.config.ts`의 vite `define`으로 빌드 타임 주입. v0.2.7이 이 때문에 모든 seek이 죽은 채 게시됨 (troubleshooting #31). `pnpm build`가 `scripts/check-main-world.mjs`로 자동 차단한다.
+10. **실패를 조용히 삼키지 말 것**: `.catch(() => {})`, 네이티브 `confirm`/`prompt`, 상위에서 뭉뚱그린 에러 메시지 — troubleshooting #28~#31이 전부 "실패가 아무 신호도 안 남겨서" 발견이 늦어진 사례다. 새 기능마다 "실패하면 사용자가 뭘 보게 되는가"를 확인할 것.
 
 ## 멀티 OTT 확장 대비 (v0.3 준비)
 

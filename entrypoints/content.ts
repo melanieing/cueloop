@@ -14,6 +14,9 @@ interface JumpResultDetail {
 
 const seenMovies = new Set<string>();
 
+/** seek 타임아웃 경고는 한 번만 — 연타해도 콘솔이 묻히지 않게. */
+let jumpTimeoutWarned = false;
+
 /**
  * /watch/ 진입 후 이 시간 안에 자막이 안 들어오면 실패로 간주한다.
  * Netflix manifest 캡처 → background fetch → DB 저장까지 넉넉히 잡은 값.
@@ -51,7 +54,17 @@ function jumpInPage(startMs: number): Promise<{ ok: boolean; error?: string; via
     setTimeout(() => {
       if (!settled) {
         window.removeEventListener('cueloop/jump-result', handler);
-        resolve({ ok: false, error: 'jump timeout (2s)' });
+        // 타임아웃은 거의 항상 "MAIN world 스크립트가 리스너를 등록하지 못함"을 뜻한다.
+        // inject의 main()이 중간에 throw하면 그 아래가 조용히 죽는다 (troubleshooting #31).
+        if (!jumpTimeoutWarned) {
+          jumpTimeoutWarned = true;
+          console.error(
+            '[Cueloop] seek 응답 없음 — MAIN world 스크립트(inject)가 cueloop/jump 리스너를' +
+              ' 등록하지 못한 상태로 보입니다. 페이지 콘솔에서 "[Cueloop] JSON.parse hijacked"' +
+              ' 로그가 찍혔는지 확인하세요. (docs/troubleshooting.md #31)',
+          );
+        }
+        resolve({ ok: false, error: 'jump timeout (2s) — inject 리스너 미등록 의심' });
       }
     }, 2000);
     window.dispatchEvent(
