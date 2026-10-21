@@ -1,5 +1,10 @@
 import { defineConfig } from 'wxt';
 import tailwindcss from '@tailwindcss/vite';
+import { readFileSync } from 'node:fs';
+
+// inject.content.ts(MAIN world)는 확장 API를 쓸 수 없어 매니페스트를 조회할 수 없다.
+// 빌드 타임에 버전 문자열을 주입한다 ([troubleshooting #31]).
+const pkgVersion = JSON.parse(readFileSync('./package.json', 'utf-8')).version as string;
 
 // See https://wxt.dev/api/config.html
 export default defineConfig({
@@ -40,6 +45,7 @@ export default defineConfig({
   },
   modules: ['@wxt-dev/module-react'],
   vite: () => ({
+    define: { __CUELOOP_VERSION__: JSON.stringify(pkgVersion) },
     plugins: [
       tailwindcss(),
       {

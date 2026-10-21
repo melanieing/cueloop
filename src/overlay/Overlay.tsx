@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Line } from '@/src/db';
 import type { CueloopMessage } from '@/src/messages';
 import { noteSendFailure } from '@/src/lib/runtimeError';
@@ -156,12 +156,22 @@ async function updateCustomLoopLabel(loopId: number, label: string): Promise<voi
   await browser.runtime.sendMessage(msg).catch(noteSendFailure);
 }
 
-function netflixSeek(startMs: number): void {
+/**
+ * @param play 반복을 "시작"할 때만 true. Netflix Player API의 seek()는 재생을
+ *   재개하지 않아서, 일시정지 상태로 반복을 걸면 먹통처럼 보인다.
+ *   반복 중 되감기(checkRepeat)엔 false — 사용자가 일시정지한 걸 되돌리면 안 된다.
+ */
+function netflixSeek(startMs: number, play = false): void {
   const id = `overlay-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
   window.dispatchEvent(
-    new CustomEvent('cueloop/jump', { detail: { id, startMs } }),
+    new CustomEvent('cueloop/jump', { detail: { id, startMs, play } }),
   );
 }
+
+/** HTMLMediaElement.HAVE_FUTURE_DATA — 이 아래면 버퍼링 중으로 본다. */
+const HAVE_FUTURE_DATA = 3;
+/** 되감기가 이 시간 안에 안착하지 않으면 가드를 푼다 (교착 방지). */
+const SEEK_LANDING_TIMEOUT_MS = 5000;
 
 function computeDisplayEndMs(lines: Line[], idx: number): number {
   if (idx < 0 || idx >= lines.length) return 0;
@@ -235,6 +245,17 @@ export function Overlay({ video }: OverlayProps) {
   const currentLineRef = useRef<Line | null>(null);
   const repeatingRef = useRef<Repeating | null>(null);
   const repeatCountRef = useRef(0);
+  // 되감기를 요청했고 아직 안착하지 않은 상태 — 그동안 카운트·재seek 금지.
+  const awaitingSeekRef = useRef(false);
+
+  // 반복 시작 시 재생 재개 보장. inject의 Netflix Player API 경로가 실패하거나
+  // play()가 아예 없을 수 있어서, 스페이스바와 같은 검증된 경로로 한 번 더 확인한다.
+  const ensurePlaying = useCallback(() => {
+    if (!video.paused) return;
+    void video.play().catch((err: unknown) => {
+      console.warn('[Cueloop overlay] play() 거부됨:', err);
+    });
+  }, [video]);
   const lastSeekAtRef = useRef(0);
   const lastLineIdRef = useRef<number | undefined>(undefined);
   const pendingStartMsRef = useRef<number | null>(null);
@@ -309,7 +330,9 @@ export function Overlay({ video }: OverlayProps) {
         setRepeating(newRep);
         setRepeatCount(0);
         lastSeekAtRef.current = performance.now();
-        netflixSeek(startMs);
+        awaitingSeekRef.current = true;
+        netflixSeek(startMs, true);
+        ensurePlaying();
       } else if (m?.type === 'PLAY_LINE_LOOP_IN_TAB') {
         const { lineId, startMs } = m.payload;
         const sorted = linesRef.current;
@@ -322,7 +345,9 @@ export function Overlay({ video }: OverlayProps) {
         setRepeating(newRep);
         setRepeatCount(0);
         lastSeekAtRef.current = performance.now();
-        netflixSeek(startMs);
+        awaitingSeekRef.current = true;
+        netflixSeek(startMs, true);
+        ensurePlaying();
       } else if (m?.type === 'STOP_REPEAT_IN_TAB') {
         repeatingRef.current = null;
         repeatCountRef.current = 0;
@@ -359,6 +384,25 @@ export function Overlay({ video }: OverlayProps) {
       const seekCooldownActive = now - lastSeekAtRef.current < 250;
       const startMs = rep.kind === 'line' ? rep.line.startMs : rep.startMs;
       const endMs = rep.kind === 'line' ? rep.line.endMs : rep.endMs;
+
+      // 버퍼링/탐색 중엔 판정 보류. currentTime이 endMs에 멈춰 있는데 시간 쿨다운만
+      // 보고 판단하면 250ms마다 카운트 +1 + 재seek이 반복되고, 그 seek이 버퍼링을
+      // 다시 시작시켜 로딩이 영영 안 끝난다 (로딩바 99% 고착). timeupdate는 멈춰도
+      // rAF는 계속 돌기 때문에 이 가드가 없으면 멈출 방법이 없다.
+      if (video.seeking || video.readyState < HAVE_FUTURE_DATA) return;
+
+      // 되감기를 걸었으면 실제로 안착(= 시간이 구간 끝 아래로 복귀)할 때까지
+      // 카운트·재seek을 모두 막는다. 시간 기반 쿨다운만으론 느린 seek을 못 기다린다.
+      if (awaitingSeekRef.current) {
+        if (timeMs < endMs) {
+          awaitingSeekRef.current = false;
+        } else if (now - lastSeekAtRef.current > SEEK_LANDING_TIMEOUT_MS) {
+          awaitingSeekRef.current = false; // 안전장치 — 영구 교착 방지
+        } else {
+          return;
+        }
+      }
+
       if (
         !seekCooldownActive &&
         (timeMs < startMs - 200 || timeMs > endMs + 2500)
@@ -378,6 +422,7 @@ export function Overlay({ video }: OverlayProps) {
         }
         netflixSeek(startMs);
         lastSeekAtRef.current = now;
+        awaitingSeekRef.current = true;
       }
     }
 
@@ -508,8 +553,10 @@ export function Overlay({ video }: OverlayProps) {
     setRepeating(repeatingRef.current);
     setRepeatCount(0);
     lastSeekAtRef.current = performance.now();
+    awaitingSeekRef.current = true;
     showToast('🔁 라인 반복 시작 (L)');
-    netflixSeek(cur.startMs);
+    netflixSeek(cur.startMs, true);
+    ensurePlaying();
   }
 
   function markA() {
@@ -553,8 +600,10 @@ export function Overlay({ video }: OverlayProps) {
     pendingStartMsRef.current = null;
     setPendingStartMs(null);
     lastSeekAtRef.current = performance.now();
+    awaitingSeekRef.current = true;
     showToast(`🔁 CustomLoop 시작 ${formatTime(start)}-${formatTime(end)}`);
-    netflixSeek(start);
+    netflixSeek(start, true);
+    ensurePlaying();
   }
 
   async function labelCustomLoop() {

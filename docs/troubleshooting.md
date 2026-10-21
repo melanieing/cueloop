@@ -799,3 +799,37 @@ if (!window.confirm(`이 구간을 삭제할까요?...`)) return;  // 항상 여
 **교훈**:
 - **확장 UI에서 `window.confirm`/`prompt`/`alert`는 쓰지 말 것.** 사용자가 억제를 켜면 되돌릴 UI가 없고, 실패가 "아무 반응 없음"으로 나타나 원인 추적이 거의 불가능하다. 억제 상태를 코드로 감지할 방법도 없다(취소와 구분 불가).
 - 이것도 [#28](조용한 캡처 실패), [#29](조용한 컨텍스트 무효화)와 같은 계열 — **실패가 아무 신호도 남기지 않는 설계**가 반복적으로 비용을 만들고 있다. 새 기능에 "실패 시 사용자가 뭘 보게 되는가"를 체크 항목으로.
+
+---
+
+### #31. MAIN world에서 `browser.runtime.getManifest()` 호출 → inject `main()` 중단 → 모든 seek 먹통
+
+**발생**: 2026-10-21, v0.2.7 **게시 후** 발견 (게시된 버전에 포함됨)
+
+**증상**: 자막은 정상 표시·수집되는데 **라인 클릭 이동, 내 구간 ▶ 재생, 구간 반복이 전부 무반응**. 콘솔엔 `[Cueloop] jump (in-tab) result: {ok: false, error: 'jump timeout (2s)'}`. 사이드패널엔 `해당 영화(70283145)를 재생 중인 Netflix 탭을 찾을 수 없음 (열린 watch 탭: 1개)`.
+
+**원인**: v0.2.7 bump 때 "빌드 식별 로그의 버전을 하드코딩하지 말자"며 넣은 한 줄.
+
+```ts
+// entrypoints/inject.content.ts — world: 'MAIN'
+console.log(`[Cueloop] JSON.parse hijacked (MAIN world) — v${browser.runtime.getManifest().version}`);
+window.addEventListener('cueloop/jump', ...);  // ← 등록되지 않음
+```
+
+`inject.content.ts`는 `world: 'MAIN'`(페이지 컨텍스트)이라 **확장 API가 존재하지 않는다.** `browser.runtime.getManifest()`가 throw → `main()` 중단 → 바로 다음 줄의 `cueloop/jump` 리스너가 **등록되지 않음** → 오버레이·content script가 보내는 모든 seek 요청이 응답 없이 2초 타임아웃.
+
+**왜 "자막은 되는데 이동만 안 되는" 모양이었나**: JSON.parse 후킹은 throw 지점보다 **앞**에서 설치되므로 살아남았다. 그 뒤 코드만 전부 죽었다.
+
+**왜 "탭을 찾을 수 없음"으로 보였나**: `handleJumpToLine`이 탭 루프를 돌며 `resp?.ok`만 보고, 실패하면 다음 탭으로 넘어간 뒤 마지막에 "탭을 찾을 수 없음"을 반환. **탭은 찾았고 메시지도 전달됐는데 탭 안에서 실패한 것**인데, 그 원인이 가려졌다.
+
+**해결**:
+1. `cueloop/jump` 리스너 등록을 `main()` 최상단으로. 식별 로그는 맨 뒤 + `try/catch`.
+2. 버전은 **빌드 타임 주입** — `wxt.config.ts`의 Vite `define`으로 `__CUELOOP_VERSION__`(package.json에서 읽음). MAIN world에서 확장 API를 쓰지 않는다.
+3. `handleJumpToLine` — 탭 내부 실패 원인을 `lastTabError`로 보존해 `재생 탭에서 이동 실패: <원인>`으로 전달.
+4. 사이드패널 구간 재생 실패 에러가 4초 뒤 자동으로 사라지던 것 → 유지 + 눈에 띄는 박스 + 직접 닫기.
+
+**교훈**:
+- **`world: 'MAIN'` 엔트리포인트에서는 `browser.*` 금지.** 페이지 컨텍스트라 확장 API가 없다. MAIN world에 필요한 값은 **빌드 타임에 주입**한다. ([#4]에서 inject 파일명 규약을 배웠다면, 여기선 실행 컨텍스트 제약을 배운 셈)
+- **`main()` 상단의 한 줄이 throw하면 그 아래 전부가 조용히 사라진다.** 핵심 리스너 등록은 가장 먼저, 로그·부가 기능은 뒤에 + try/catch.
+- **진단 장치가 버그의 원인이 될 수 있다.** 이번엔 "어느 빌드가 도는지 알려주는 로그"가 기능을 끊었고, 그 로그가 안 찍히는 것 자체가 신호였는데 사용자가 확장 카드로 버전을 확인해 신호를 놓쳤다. 진단 코드일수록 실패해도 무해하게(try/catch) 짤 것.
+- **에러를 상위에서 뭉뚱그리지 말 것.** "탭을 찾을 수 없음"이 진짜 원인(`jump timeout`)을 가려 진단이 한참 돌아갔다. 하위 실패 원인은 반드시 위로 전달한다. ([#28]/[#29]/[#30]과 같은 계열 — 실패를 보이게 하라)

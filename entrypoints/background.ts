@@ -195,6 +195,7 @@ async function handleJumpToLine(
     return { ok: false, error: 'Netflix watch 탭이 열려있지 않음' };
   }
 
+  let lastTabError: string | null = null;
   for (const tab of tabs) {
     if (tab.id == null) continue;
     const tabMovieId = extractMovieIdFromUrl(tab.url);
@@ -211,13 +212,18 @@ async function handleJumpToLine(
         | undefined;
       console.log(`[Cueloop]   tab ${tab.id} response:`, resp);
       if (resp?.ok) return { ok: true };
+      // 탭은 찾았는데 그 안에서 실패한 경우. 아래의 "탭을 찾을 수 없음"으로
+      // 뭉뚱그리면 원인이 가려진다 ([troubleshooting #31]).
+      if (resp?.error) lastTabError = resp.error;
     } catch (err) {
       console.log(`[Cueloop]   tab ${tab.id} sendMessage error:`, err);
     }
   }
   return {
     ok: false,
-    error: `해당 영화(${movieId})를 재생 중인 Netflix 탭을 찾을 수 없음 (열린 watch 탭: ${tabs.length}개)`,
+    error: lastTabError
+      ? `재생 탭에서 이동 실패: ${lastTabError}`
+      : `해당 영화(${movieId})를 재생 중인 Netflix 탭을 찾을 수 없음 (열린 watch 탭: ${tabs.length}개)`,
   };
 }
 

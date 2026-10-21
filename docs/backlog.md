@@ -267,7 +267,20 @@ v0.2.1을 심사 중 취소하고 아래 hide 기능을 더해 0.2.2로 bump →
 - [x] **v0.2.5 zip 준비 완료** (2026-06-10) — `cueloop-0.2.5-chrome.zip` (onboarding/FAQ 반영 후 재zip). version bump 0.2.4→0.2.5, manifest에 storage 권한 포함 확인. WEB_STORE_LISTING에 storage 정당화 추가.
 - [x] **v0.2.5 게시 완료** (심사 통과, 2026-06-14) — storage 권한 + web_accessible_resources(아이콘) 변경 포함했음에도 통과. 제목/요약 갱신("내가 완성하는 자막으로 영화 100번 들어 외워버리기"). 기존 사용자에게 자동 업데이트(같은 ID, IndexedDB 보존). 다음 누적은 v0.2.6으로 bump.
 
-## v0.2.7 — Netflix manifest 변경 긴급 핫픽스 + UI 개선 (2026-09-20 ~ 10-21)
+## v0.2.8 — v0.2.7 긴급 복구 (2026-10-21)
+
+> 🔴 **v0.2.7 게시본에 치명 버그.** MAIN world에서 `browser.runtime.getManifest()`를 호출해 inject `main()`이 중단 → `cueloop/jump` 리스너 미등록 → **라인 이동·구간 반복 전부 먹통**(자막 표시·수집은 정상). 상세: [troubleshooting #31](./troubleshooting.md)
+
+- [x] 리스너 등록을 `main()` 최상단으로, 식별 로그는 맨 뒤 + `try/catch`
+- [x] 버전을 빌드 타임 주입 (`wxt.config.ts` Vite `define` → `__CUELOOP_VERSION__`)
+- [x] `handleJumpToLine` — 탭 내부 실패 원인을 보존해 전달 ("탭을 찾을 수 없음"으로 뭉개지 않음)
+- [x] 사이드패널 구간 재생 실패 에러 — 4초 자동 소멸 제거 + 눈에 띄는 박스
+- [x] 일시정지 상태에서 반복 시작 시 재생 재개 (`seek()`는 재생을 시작하지 않음)
+- [x] 반복 중 버퍼링 무한 루프 수정 (시간 쿨다운 → seek 안착 확인 + `video.seeking`/`readyState` 가드)
+- [x] 사용자 검증 완료 (2026-10-21)
+- [ ] **devconsole 업로드 + 제출** — `cueloop-0.2.8-chrome.zip`
+
+## v0.2.7 — Netflix manifest 변경 긴급 핫픽스 + UI 개선 (2026-09-20 ~ 10-21, 게시됨)
 
 > 📦 **게시 번호는 0.2.7.** 작업은 0.2.6으로 시작했으나 devconsole에 0.2.6이 이미 올라가 있어 bump. 아래 항목 전부 0.2.7 한 묶음으로 제출.
 
@@ -290,7 +303,7 @@ v0.2.1을 심사 중 취소하고 아래 hide 기능을 더해 0.2.2로 bump →
 - [x] **"내 구간" 삭제/라벨 수정 불가 버그** ([troubleshooting #30](./troubleshooting.md)) — Chrome 네이티브 `confirm`/`prompt`가 "추가 대화 표시 안 함" 체크 후 즉시 false/null을 반환해 조용히 무력화됨. `CustomLoopList.tsx`를 인라인 확인/입력 UI로 교체.
 - [x] **구간 라벨 기본값 = 첫 영어 자막** — `src/lib/customLoopLabel.ts`의 `deriveLoopLabel()`. 구간과 **겹치는**(포함 아님 — 구간이 라인 중간에서 시작할 수 있음) 라인 중 가장 이른 것의 `textEn`, 숨긴 라인 제외, 60자 초과 시 말줄임. B키 생성 시 background가 부여하고, 라벨 없는 기존 구간은 ✎ 라벨 편집 시 기본값으로 채움. 영어 자막 없는 구간은 그대로 "(라벨 없음)".
 - [x] **오버레이 반복 카운터를 누적 기준으로 수정** — 기존엔 큰 글씨 `N / 100`의 분자가 **이번 세션** 카운터(`repeatCount`, 반복 시작마다 0으로 리셋)인데 분모가 100LS 목표치여서 진행도로 오독됐음(사이드패널 행의 누적값과 불일치). 큰 숫자를 **누적**(`GET_LISTEN_COUNT`로 조회, 한 바퀴마다 낙관적 +1)으로 바꾸고 아래 작은 줄에 `이번 N회` 추가. 마일스톤 색상(50/100)도 누적 기준으로. 구현은 `repeating` state 변화에 반응하는 effect 하나로 처리 — 반복 시작 지점 8곳은 미수정.
-- [ ] **🔴 v0.2.8 최우선 — 반복 중 버퍼링 무한 루프**: `checkRepeat`가 시간 기반 쿨다운(250ms)만 보고 판단해서, 되감기 직후 버퍼링이 걸리면 `currentTime`이 `endMs`에 멈춘 채 250ms마다 **카운트 +1 + 재seek**이 반복된다. 새 seek이 버퍼링을 다시 시작시켜 로딩바가 99%에서 영영 안 끝남(`timeupdate`는 멈춰도 rAF는 계속 돎). **우리 코드가 멈춤을 유발·유지**함. 해결: 시간 쿨다운 대신 seek 안착 확인(`awaitingSeek` 플래그 → `currentTime`이 `startMs` 근처로 복귀할 때까지 카운트·재seek 차단) + `video.seeking || readyState < 3`이면 판정 보류. 0.2.5에도 있던 기존 버그(회귀 아님).
+- [x] **반복 중 버퍼링 무한 루프** (v0.2.8에서 해결): `checkRepeat`가 시간 기반 쿨다운(250ms)만 보고 판단해서, 되감기 직후 버퍼링이 걸리면 `currentTime`이 `endMs`에 멈춘 채 250ms마다 **카운트 +1 + 재seek**이 반복된다. 새 seek이 버퍼링을 다시 시작시켜 로딩바가 99%에서 영영 안 끝남(`timeupdate`는 멈춰도 rAF는 계속 돎). **우리 코드가 멈춤을 유발·유지**함. 해결: 시간 쿨다운 대신 seek 안착 확인(`awaitingSeek` 플래그 → `currentTime`이 `startMs` 근처로 복귀할 때까지 카운트·재seek 차단) + `video.seeking || readyState < 3`이면 판정 보류. 0.2.5에도 있던 기존 버그(회귀 아님).
 - [ ] **후속**: `Overlay.tsx` S키 라벨 입력도 `window.prompt` → 오버레이 인라인 input으로 교체 (Shadow DOM의 `isTypingInInput()` 보정 필요)
 - [x] **작품 목록 정렬 변경** — 최신순(`createdAt` 역순) → **제목 가나다/알파벳순**. `src/lib/contentSort.ts`의 `compareContentTitle`(로케일 'ko', `numeric: true`, `sensitivity: 'base'`)을 사이드패널 드롭다운·옵션 페이지 목록 양쪽에 적용.
 - [ ] 복귀/장기 공백 후 체크리스트 — 기능 작업 전 Netflix 경로 스모크 테스트

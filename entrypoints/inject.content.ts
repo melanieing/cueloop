@@ -1,10 +1,15 @@
+declare const __CUELOOP_VERSION__: string;
+
 interface JumpDetail {
   id: string;
   startMs: number;
+  /** seek 후 재생을 재개할지. 일시정지 상태에서 반복을 시작할 때 필요. */
+  play?: boolean;
 }
 
 interface NetflixPlayerLike {
   seek?: (timeMs: number) => unknown;
+  play?: () => unknown;
 }
 
 interface NetflixVideoPlayerLike {
@@ -31,7 +36,28 @@ function getNetflixVideoPlayer(): NetflixVideoPlayerLike | null {
   }
 }
 
-function netflixSeek(startMs: number): { ok: boolean; error?: string; via?: string } {
+/**
+ * 일시정지 상태에서 반복을 시작할 때 재생까지 재개한다.
+ * Netflix Player API에 play()가 있다는 보장이 없으므로(없으면 optional call이
+ * 조용히 no-op), 함수인지 확인하고 아니면 <video>.play()로 내려간다.
+ */
+function resumePlayback(player?: NetflixPlayerLike): void {
+  if (player && typeof player.play === 'function') {
+    try {
+      player.play();
+      return;
+    } catch (err) {
+      console.warn('[Cueloop] Netflix Player API play failed:', err);
+    }
+  }
+  const video = document.querySelector('video');
+  if (video?.paused) void video.play().catch(() => {});
+}
+
+function netflixSeek(
+  startMs: number,
+  play = false,
+): { ok: boolean; error?: string; via?: string } {
   const videoPlayer = getNetflixVideoPlayer();
   if (videoPlayer?.getAllPlayerSessionIds && videoPlayer.getVideoPlayerBySessionId) {
     try {
@@ -40,6 +66,10 @@ function netflixSeek(startMs: number): { ok: boolean; error?: string; via?: stri
         const player = videoPlayer.getVideoPlayerBySessionId(sid);
         if (player?.seek) {
           player.seek(startMs);
+          // Player API의 seek()는 위치만 옮기고 재생을 시작하지 않는다.
+          // 일시정지 상태에서 반복을 걸면 currentTime이 멈춰 있어 아무 일도
+          // 일어나지 않는 것처럼 보인다 → 반복 시작 시엔 재생까지 재개한다.
+          if (play) resumePlayback(player);
           return { ok: true, via: 'netflix-player-api' };
         }
       }
@@ -52,7 +82,7 @@ function netflixSeek(startMs: number): { ok: boolean; error?: string; via?: stri
   if (video) {
     try {
       video.currentTime = startMs / 1000;
-      void video.play().catch(() => {});
+      if (play || !video.paused) void video.play().catch(() => {});
       return { ok: true, via: 'video-element-fallback' };
     } catch (err) {
       return { ok: false, error: `video.currentTime failed: ${String(err)}` };
@@ -160,16 +190,13 @@ export default defineContentScript({
       }
       return data;
     };
-    // 어느 빌드가 돌고 있는지 바로 구분하기 위한 표식 (troubleshooting #28).
-    // 버전은 매니페스트에서 읽는다 — 손으로 적으면 bump할 때마다 어긋난다.
-    console.log(
-      `[Cueloop] JSON.parse hijacked (MAIN world) — v${browser.runtime.getManifest().version}`,
-    );
-
+    // ⚠ 여기는 MAIN world(페이지 컨텍스트)다. `browser.*` / `chrome.runtime.getManifest()`
+    // 같은 확장 API는 존재하지 않으며, 건드리면 throw해서 main()이 통째로 중단된다
+    // (troubleshooting #31). 리스너 등록을 먼저 끝내고, 로그는 try/catch로 감싼다.
     window.addEventListener('cueloop/jump', (event) => {
       const detail = (event as CustomEvent<JumpDetail>).detail;
       if (!detail?.id || typeof detail.startMs !== 'number') return;
-      const result = netflixSeek(detail.startMs);
+      const result = netflixSeek(detail.startMs, detail.play === true);
       console.log(`[Cueloop] jump via ${result.via ?? 'fail'}: ${result.ok ? 'OK' : result.error}`);
       window.dispatchEvent(
         new CustomEvent('cueloop/jump-result', {
@@ -177,5 +204,13 @@ export default defineContentScript({
         }),
       );
     });
+
+    // 어느 빌드가 돌고 있는지 구분하기 위한 표식. 버전은 빌드 타임에 주입된다
+    // (매니페스트 조회는 MAIN world에서 불가능).
+    try {
+      console.log(`[Cueloop] JSON.parse hijacked (MAIN world) — v${__CUELOOP_VERSION__}`);
+    } catch {
+      // 로그 실패가 기능을 막아선 안 된다
+    }
   },
 });

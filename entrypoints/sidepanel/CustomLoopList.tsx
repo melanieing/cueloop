@@ -77,13 +77,10 @@ function CustomLoopRow({
         | { ok?: boolean; error?: string }
         | undefined;
       if (!resp?.ok) {
-        const e = resp?.error ?? '재생 실패';
-        setError(e);
-        window.setTimeout(() => setError(null), 4000);
+        setError(resp?.error ?? '재생 실패');
       }
     } catch (err) {
       setError(String(err));
-      window.setTimeout(() => setError(null), 4000);
     }
   }
 
@@ -251,7 +248,18 @@ function CustomLoopRow({
         </div>
       )}
       {error && (
-        <div className="mt-1 text-[10px] text-red-400">{error}</div>
+        <div className="mt-1.5 flex items-start gap-1.5 rounded border border-red-700 bg-red-950/80 px-2 py-1 text-[11px] leading-snug text-red-200">
+          <span className="shrink-0">⚠</span>
+          <span className="flex-1">{error}</span>
+          <button
+            type="button"
+            onClick={() => setError(null)}
+            className="shrink-0 text-red-400 hover:text-red-100"
+            title="닫기"
+          >
+            ✕
+          </button>
+        </div>
       )}
     </div>
   );
